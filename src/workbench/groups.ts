@@ -10,6 +10,7 @@ import { askSave, contextMenu } from "../ui/notify";
 import { diffLines } from "./dirtydiff";
 import { Doc, docName, isDirty, newUntitled, openDoc, releaseDoc, retainDoc, saveDoc } from "./documents";
 import { TerminalSession } from "./terminal";
+import { registerWheelEditor } from "./wheel";
 
 interface FileTab {
   kind: "file";
@@ -97,6 +98,7 @@ export class EditorGroup {
     this.el.append(tabBar, this.bodyEl);
     this.editor = monaco.editor.create(this.editorHost, { ...editorOptions(), model: null });
     this.decorations = this.editor.createDecorationsCollection();
+    registerWheelEditor(this.editor);
     this.watchEditor(this.editor);
     this.el.addEventListener("mousedown", () => setActiveGroup(this, false), true);
 
@@ -149,6 +151,8 @@ export class EditorGroup {
       renderMarginRevertIcon: true,
     });
     this.watchEditor(this.diff.getModifiedEditor());
+    registerWheelEditor(this.diff.getModifiedEditor());
+    registerWheelEditor(this.diff.getOriginalEditor());
     this.diff.getOriginalEditor().onDidFocusEditorWidget(() => setActiveGroup(this, false));
     return this.diff;
   }

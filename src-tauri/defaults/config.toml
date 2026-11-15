@@ -47,6 +47,14 @@ pane_radius = 3
 # macOS title bar: "native", or "hidden" (herdr style: traffic lights over the sidebar,
 # drag the window from the top of the sidebar or empty tab-bar space). Needs a restart.
 titlebar = "native"
+# Mouse wheel (macOS, not trackpads): "chromium" makes every wheel click scroll at least one
+# whole step, like VS Code/Chrome; "system" uses macOS's accelerated fractional steps (Safari's
+# behavior: slow clicks barely move). Needs a restart.
+mouse_wheel = "chromium"
+# Editor scrolling from wheels and trackpads: "slate" collects each frame's events and moves
+# by the exact amount (smooth trackpad scrolling in WebKit); "monaco" moves per event, rounded
+# up to whole pixels (slow trackpad swipes jump). Applies live.
+editor_wheel = "slate"
 # Height of each editor group's tab bar (herdr's pane header is 30).
 tab_height = 35
 # Text drawn before stacked sidebar section titles, e.g. "▌".

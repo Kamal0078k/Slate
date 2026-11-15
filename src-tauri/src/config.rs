@@ -69,6 +69,8 @@ const ENUMS: &[(&str, &[&str])] = &[
     ("ui.background.area", &["window", "editor"]),
     ("ui.pane_style", &["flush", "framed"]),
     ("ui.titlebar", &["native", "hidden"]),
+    ("ui.mouse_wheel", &["chromium", "system"]),
+    ("ui.editor_wheel", &["slate", "monaco"]),
     ("terminal.cursor_style", &["block", "underline", "bar"]),
     ("files.auto_save", &["off", "after_delay"]),
     ("editor.word_wrap", &["off", "on", "wordWrapColumn", "bounded"]),
@@ -536,6 +538,17 @@ pub fn load_config(with_plugins: bool) -> Result<LoadedConfig, String> {
         style,
         plugins,
     })
+}
+
+/// "chromium" (default) or "system": how mouse-wheel clicks are turned into scrolling (macOS).
+pub fn mouse_wheel_mode() -> String {
+    parse_config()
+        .effective
+        .get("ui")
+        .and_then(|ui| ui.get("mouse_wheel"))
+        .and_then(Value::as_str)
+        .unwrap_or("chromium")
+        .to_string()
 }
 
 /// Whether the window was created without a title bar ([ui] titlebar = "hidden").

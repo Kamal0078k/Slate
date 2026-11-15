@@ -498,17 +498,20 @@ export function registerCoreCommands() {
     type Rec = { t: number; deltaY: number; deltaMode: number; wheelDeltaY: number | null; moved: number; trusted: boolean };
     const recs: Rec[] = [];
     const frames: number[] = [];
-    let pendingFrom: number | null = null;
     let current: Rec | null = null;
+    // Each scroll change is credited to the wheel event that caused it (Monaco handles the
+    // event after this listener, so the position can't be read inside it).
+    let lastTop = ed.getScrollTop();
+    const scrollSub = ed.onDidScrollChange((e) => {
+      if (!e.scrollTopChanged) return;
+      if (current) current.moved += Math.round(e.scrollTop - lastTop);
+      lastTop = e.scrollTop;
+    });
     const onWheel = (e: WheelEvent) => {
       const legacy = (e as unknown as { wheelDeltaY?: number }).wheelDeltaY;
+      lastTop = ed.getScrollTop();
       current = { t: performance.now(), deltaY: e.deltaY, deltaMode: e.deltaMode, wheelDeltaY: legacy ?? null, moved: 0, trusted: e.isTrusted };
       recs.push(current);
-      pendingFrom = ed.getScrollTop();
-      // Monaco handles the event after us; read the resulting position right after.
-      queueMicrotask(() => {
-        if (current && pendingFrom != null) current.moved = Math.round(ed.getScrollTop() - pendingFrom);
-      });
     };
     node.addEventListener("wheel", onWheel, { capture: true, passive: true });
     notify("Recording for 10 seconds: scroll this file with your MOUSE WHEEL now (single clicks, then fast spins).", "info", 10000);
@@ -525,6 +528,7 @@ export function registerCoreCommands() {
     await new Promise((r) => setTimeout(r, 10000));
     recording = false;
     node.removeEventListener("wheel", onWheel, { capture: true } as EventListenerOptions);
+    scrollSub.dispose();
     if (!recs.length) return notify("No wheel events were recorded. Run it again and scroll over the editor.", "warning");
 
     const med = (xs: number[]) => { const s2 = [...xs].sort((a, b) => a - b); return s2[Math.floor(s2.length / 2)] ?? 0; };

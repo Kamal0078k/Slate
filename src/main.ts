@@ -1,5 +1,6 @@
 import "./styles.css";
 import { loadFonts } from "./core/fonts";
+import { installEditorWheel } from "./workbench/wheel";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -86,6 +87,7 @@ async function boot() {
   registerCoreCommands();
   initStatusBar();
   installKeybindings();
+  installEditorWheel();
 
   // Unknown command ids fall through to Monaco actions, so keybindings.json can bind
   // things like "editor.action.copyLinesDownAction" exactly as in VS Code.

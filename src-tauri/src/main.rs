@@ -6,6 +6,8 @@ mod fsops;
 mod git;
 mod layout;
 mod pty;
+#[cfg(target_os = "macos")]
+mod wheel;
 mod search;
 mod watcher;
 
@@ -141,6 +143,10 @@ fn main() {
                 builder = builder.with_webview_configuration(config);
             }
             builder.build()?;
+            #[cfg(target_os = "macos")]
+            if config::mouse_wheel_mode() == "chromium" {
+                wheel::install_chromium_wheel();
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
