@@ -222,3 +222,7 @@ SUMI_SELFTEST=1 src-tauri/target/debug/sumi <git repo>   # dev smoke test (with 
 
 Sumi was called Slate before; old config folders (`~/.config/slate`), `SLATE_CONFIG_DIR` and
 `slate-plugin.toml` manifests still work.
+
+## License
+
+[MIT](LICENSE)

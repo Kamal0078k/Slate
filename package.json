@@ -1,6 +1,7 @@
 {
   "name": "sumi",
   "version": "0.1.0",
+  "license": "MIT",
   "description": "A fast, hackable desktop text editor: Rust core, JS customization",
   "scripts": {
     "dev": "vite",
