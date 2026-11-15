@@ -1,154 +1,224 @@
-# Slate
+# Sumi 墨
 
-A fast, hackable desktop text editor: **Rust core + Monaco (VS Code's editor) + JS customization**.
+**A fast, hackable desktop code editor.** Rust core, VS Code's editor (Monaco) inside, and every
+pixel of the look — layout, theme, fonts, panels, widgets — defined by files you own.
 
-## Run
+*Sumi* (墨) is the ink of Japanese calligraphy: the editor is the brush, your code is the ink.
+
+## Why Sumi
+
+- **Your editor, your look.** The whole window is a layout file: where the file tree, search,
+  source control and editor sit, how big they are, what's drawn behind your code. Themes, fonts
+  and small UI widgets are plain files next to it. Edit any of them and the window updates as
+  you save.
+- **Named configs you can switch.** Keep several complete setups — say a calm minimal one, a
+  dark one with a wallpaper behind the editor, a presentation one with big fonts — and switch
+  between them with one command. Shared settings (search excludes, key bindings) live in one
+  place; each config only sets what makes it different.
+- **Widgets in a few lines of JS.** Drop a `main.js` into a folder and place it in your layout:
+  a clock, a git summary, a quote that changes when you save, an animated header. They
+  hot-reload on save and follow the theme's colors automatically.
+- **Fast where it matters.** File search, fuzzy file finding, git and file watching run in Rust;
+  scrolling is tuned for trackpads and high-refresh (120 Hz) displays.
+- **Everything you expect from VS Code's editor.** Multi-cursor, find/replace, folding, symbols,
+  the familiar shortcuts — plus a real integrated terminal, git, and split panes.
+
+## Quick start
+
+You need [Node.js](https://nodejs.org) and [Rust](https://rustup.rs) (Tauri 2's
+[prerequisites](https://v2.tauri.app/start/prerequisites/)). Developed and tested on macOS.
 
 ```bash
+git clone https://github.com/Kamal0078k/Slate.git sumi && cd sumi
 npm install
-npm run tauri dev              # dev mode with hot reload
-npm run tauri build            # release app → src-tauri/target/release/bundle/
+npm run tauri dev              # run with hot reload
+npm run tauri build            # build the app → src-tauri/target/release/bundle/
 ```
 
-Open a folder from the app (⌘O) or pass it on the command line:
-`src-tauri/target/release/slate ~/code/project`.
+Open a folder from the app (⌘O) or from the command line:
+`src-tauri/target/release/sumi ~/code/project`.
 
 ## Features
 
-- Editing with VS Code's editor and shortcuts (multi-cursor, ⌘D, ⌥↑/↓, find/replace, folding, minimap)
-- Explorer with git colors, create/rename/delete (to Trash), reveal in Finder
-- Quick Open ⌘P (fuzzy, `file:42` jumps to a line), Command Palette ⇧⌘P, Go to Line ⌃G, symbols ⇧⌘O
-- Search in files ⇧⌘F / replace ⇧⌘H: regex, case, whole word, include/exclude globs, respects .gitignore
-- Source Control: staged/unstaged changes, side-by-side diff (editable working tree), stage/unstage/discard, commit (⌘↩)
-- Git gutter markers (added / modified / deleted lines)
-- Split editors ⌘\ (right/down, drag tabs between groups, resizable), preview tabs, ⌘1/2/3 to focus groups
-- Integrated terminal (xterm.js + a real PTY), tmux/herdr style: make panes with ⌘\ / ⇧⌘\,
-  then ⌃` in a pane turns it into a terminal (or switches the pane between its terminal and its
-  file); ⌃⇧` adds another terminal tab to the pane. ⌘W closes a terminal (and stops what runs
-  in it), ⌘K clears. `path:line` in output opens the file there.
-  ⌘ shortcuts go to Slate, everything else (Ctrl+C, Ctrl+R, Esc, Option…) to the shell.
-- Watches the folder: files changed by terminal tools reload automatically when not edited
-- Session restore per folder; auto save; trim whitespace / final newline on save
+**Editing**
+- VS Code's editor and shortcuts: multi-cursor, ⌘D, ⌥↑/↓, find/replace, folding, minimap
+- Quick Open ⌘P (fuzzy; `file:42` jumps to a line), Command Palette ⇧⌘P, Go to Line ⌃G,
+  symbols ⇧⌘O
+- Split editors ⌘\ (right or down; drag tabs between groups), preview tabs, ⌘1/2/3 to focus a group
+- Session restore per folder, auto save, trim whitespace and final newline on save
 
-## Configuration (herdr app model)
+**Files and search**
+- Explorer with git colors; create, rename, delete (to Trash), reveal in Finder
+- Search in files ⇧⌘F and replace ⇧⌘H: regex, case, whole word, include/exclude globs,
+  respects `.gitignore`
+- Watches the folder: files changed by other tools reload automatically when you haven't edited them
 
-Slate ships an engine and one plain theme (`default`). Every look lives in
-`~/.config/slate/` (`$XDG_CONFIG_HOME/slate`, `%APPDATA%\slate` on Windows):
+**Git**
+- Staged and unstaged changes, side-by-side diff (the working-tree side is editable),
+  stage / unstage / discard, commit (⌘↩)
+- Gutter markers for added, modified and deleted lines
+
+**Terminal**
+- A real terminal (xterm.js + PTY) that lives in editor panes, tmux style: split with ⌘\ or ⇧⌘\,
+  then ⌃\` turns a pane into a terminal (or switches it back to its file); ⌃⇧\` adds another
+  terminal tab
+- ⌘ shortcuts go to Sumi; everything else (Ctrl+C, Ctrl+R, Esc, Option…) goes to the shell.
+  ⌘K clears, ⌘W closes. `path:line` in the output opens the file there.
+
+## Make it yours
+
+Sumi ships an engine and one plain theme. Everything else lives in `~/.config/sumi/`
+(`$XDG_CONFIG_HOME/sumi`, `%APPDATA%\sumi` on Windows):
 
 ```
-config.toml            shared settings + which layout to use (+ [layouts.<name>] tweaks)
-layouts/<name>.json    a named config: whole window + look (titlebar, theme, fonts, colors, any setting)
-layouts/<name>.toml    or just a settings preset (any config.toml keys)
+config.toml            shared settings + which layout is active
+layouts/<name>.json    a named config: the whole window + its look + any setting
+layouts/<name>.toml    or just a settings preset
 themes/<name>.toml     every color of a theme ("Config: Create Theme" writes a template)
-widgets/<name>/main.js your own UI blocks, placed by layouts (hot-reloaded on save)
-plugins/<id>/          behavior: commands, keys, views, widgets (slate-plugin.toml + index.js)
+widgets/<name>/main.js your own UI blocks, placed by layouts
+backgrounds/           images to show behind the editor (any path works)
+plugins/<id>/          new behavior: commands, keys, views, widgets
 style.css              optional raw CSS
 ```
 
+Switch configs with **Config: Layout**, themes with **Config: Color Theme**. Everything reloads
+live when saved (plugins need F5; the title bar needs a restart). Mistakes never stop the app:
+invalid values fall back to the default with a hint ("unknown config key …; did you mean …?").
+
 ```bash
-slate --default-config   # every setting with its default
-slate config check       # validate config.toml, the layout, themes, plugins
-slate config path
+sumi --default-config   # every setting with its default and an explanation
+sumi config check       # validate config.toml, the active layout, themes and plugins
+sumi config path        # where the config lives
 ```
 
-Settings apply as: Slate defaults < config.toml < the layout < `[layouts.<name>]` in config.toml.
-A layout is a named config: keep shared settings (search excludes, keys) in config.toml and the
-look (theme, fonts, cursor, minimap, panes) in each layout, then switch with "Config: Layout".
-Any config.toml setting can go in a layout's root `"config"` object, e.g.
-`"config": { "editor": { "minimap": { "enabled": false } } }`. Invalid values are ignored with
-a warning ("unknown config key …; did you mean …?") and never stop the app. Everything reloads
-live on save (plugins need F5; the title bar needs a restart).
+### How settings combine
+
+Sumi defaults < `config.toml` < the active layout < `[layouts.<name>]` in `config.toml`.
+
+Keep what every setup shares in `config.toml`, and put the look in each layout. Any setting can
+ride along in a layout's `"config"` object:
+
+```json
+"config": { "editor": { "font_size": 15, "minimap": { "enabled": false } } }
+```
+
+Small per-layout tweaks can also go in `config.toml` (this is where "Config: Color Theme" saves
+your pick, so it sticks to the current layout):
+
+```toml
+layout = "night"
+
+[layouts.night.theme]
+name = "my-dark-theme"
+```
 
 ### Layouts
 
-A layout is a tree of `row` / `column` / `stack` / `block` nodes, like the herdr app's:
+A layout is a tree of `row` / `column` / `stack` / `block` nodes. The root also carries the look:
 
 ```json
-{ "id": "root", "type": "row", "titlebar": "none", "traffic_lights": [12, 12],
-  "theme": "my-theme", "ui_font": "Geist Mono", "editor_opacity": 0.55,
+{ "id": "root", "type": "row", "titlebar": "none", "traffic_lights": [14, 14],
+  "theme": "my-theme", "font": "JetBrains Mono", "font_size": 14, "ui_font": "Geist Mono",
+  "editor_opacity": 0.75,
   "divider": { "width": 1, "color": "border" },
   "children": [
-    { "id": "sidebar", "type": "column", "size": { "px": 268 }, "background": "chrome", "children": [
-      { "id": "drag", "type": "block", "size": { "px": 32 }, "window_drag": true, "content": { "spacer": true } },
-      { "id": "lab", "type": "block", "size": { "px": 174 }, "content": { "widget": "steins-lab", "props": {} } },
+    { "id": "sidebar", "type": "column", "size": { "px": 260 }, "background": "chrome", "children": [
+      { "id": "drag", "type": "block", "size": { "px": 36 }, "window_drag": true, "content": { "spacer": true } },
+      { "id": "clock", "type": "block", "size": { "px": 120 }, "content": { "widget": "clock", "props": {} } },
       { "id": "files", "type": "stack", "header": "title", "children": [
         { "id": "explorer", "type": "block", "content": { "view": "explorer" } },
         { "id": "search", "type": "block", "content": { "view": "search" } } ] },
       { "id": "changes", "type": "block", "header": "title", "content": { "view": "scm" } } ] },
     { "id": "work", "type": "column", "padding": 8,
-      "background": { "image": "~/Pictures/wall.svg", "fit": "contain" }, "children": [
+      "background": { "image": "backgrounds/night.jpg", "fit": "cover" }, "children": [
       { "id": "main", "type": "block", "content": { "editor": true },
-        "panes": { "gap": 8, "radius": 3, "border": { "width": 1, "color": "border" },
+        "panes": { "gap": 8, "radius": 2, "border": { "width": 1, "color": "border" },
                    "focus": { "width": 1, "color": "accent" }, "header": { "height": 30 } } } ] } ] }
 ```
 
-- Block content: `view` (explorer, search, scm, or a plugin view), `editor`, `statusbar`,
+- **Block content:** `view` (explorer, search, scm, or a plugin view), `editor`, `statusbar`,
   `activitybar`, `widget` (+ `props`), `spacer`.
-- Any node: `size` (`px` or `weight`), `min`, `max`, `hidden`, `background` (theme color name,
+- **Any node:** `size` (`px` or `weight`), `min`, `max`, `hidden`, `background` (theme color name,
   `#hex`, `{gradient, angle}`, `{image, fit}`), `border`, `radius`, `padding`, `gap`, `divider`,
   `resizable`, `window_drag`. Stacks: `active`, `header` (`"title"` or `"tabs"`).
-- Color names: background/canvas, chrome/panel/sidebar, surface/popover, hover, selected,
+- **Editor panes:** `gap`, `radius`, `border`, `focus`, and a tab `header` with `"style"`:
+  `"classic"` or `"pills"`.
+- **Color names:** background/canvas, chrome/panel/sidebar, surface/popover, hover, selected,
   border, foreground, muted/dim, accent, statusbar, activitybar.
-- The node with id `sidebar` is what ⌘B toggles. Sizes you drag and stack choices are
-  remembered per layout.
-- Without a layout, Slate builds a plain window from the `[ui]` settings (sidebar position,
-  stacked sections, activity bar, framed panes, title bar).
+- The node with id `sidebar` is what ⌘B toggles. Sizes you drag are remembered per layout.
+- Without a layout, Sumi builds a plain window from the `[ui]` settings.
 
 ### Themes
 
 ```toml
 name = "My Theme"
 appearance = "dark"
-[colors]   # background, foreground, accent are enough; the rest is derived
-background = "#030405"
-foreground = "#d8d0c0"
-accent = "#bd884f"
+
+[colors]   # background, foreground and accent are enough; the rest is derived
+background = "#0f1317"
+foreground = "#d2d9df"
+accent = "#8db7cf"
+
 [syntax]   # keyword, string, number, type, function, comment, ...
+[terminal] # the 16 ANSI colors, background, foreground, cursor, selection
 [editor]   # any Monaco color id
-[ui]       # any CSS variable
+[ui]       # any CSS variable, e.g. "--tab-border-top" = "#8db7cf"
 ```
 
 ### Widgets
 
 ```js
-// widgets/clock/main.js — placed with { "widget": "clock", "props": { "format": "24h" } }
-export function mount(el, slate) {
-  el.textContent = new Date().toLocaleTimeString();
-  const t = setInterval(() => (el.textContent = new Date().toLocaleTimeString()), 1000);
-  return () => clearInterval(t); // cleanup when the block goes away or the file is saved
+// widgets/clock/main.js — placed with { "widget": "clock", "props": {} }
+export function mount(el, sumi) {
+  const tick = () => (el.textContent = new Date().toLocaleTimeString());
+  tick();
+  const timer = setInterval(tick, 1000);
+  return () => clearInterval(timer); // cleanup when the block goes away or the file is saved
 }
 ```
 
-`slate` is the plugin API plus `slate.widget` (`name`, `props`, `dir`) and `slate.theme()`.
-Use the CSS variables (`var(--accent)`, `var(--fg-dim)`, …) so widgets follow the theme.
+`sumi` is the plugin API (below) plus `sumi.widget` (`name`, `props`, `dir`) and `sumi.theme()`.
+Use the theme's CSS variables (`var(--accent)`, `var(--fg)`, `var(--fg-dim)`, `var(--border)`, …)
+so a widget fits every theme. `sumi.editor.onDidSave(...)` and friends let it react to what you do.
 
 ## Plugins
 
-`~/.config/slate/plugins/<id>/slate-plugin.toml` + `index.js` (or a single `<id>.js` file):
+`~/.config/sumi/plugins/<id>/sumi-plugin.toml` + `index.js` (or a single `<id>.js` file):
 
 ```toml
 id = "my-plugin"
 name = "My Plugin"
 version = "0.1.0"
-min_slate_version = "0.1.0"
+min_sumi_version = "0.1.0"
 main = "index.js"
 ```
 
-The module exports `activate(slate)`. API: `commands`, `keybindings`, `workspace`, `editor` (live Monaco
-editor + events), `ui` (status bar, quick pick, input, notifications, sidebar views, themes, CSS),
-`settings`, `monaco`, `exec(argv, { cwd, env })` to run any program, and `plugin`
-(`id`, `dir`, `dataDir` in `$XDG_STATE_HOME/slate/plugins/<id>`, `config()` = `[plugins.<id>]`).
-"Plugins: Create New Plugin" scaffolds one. Example: `examples/plugins/word-count.js`.
+The module exports `activate(sumi)`. The API: `commands`, `keybindings`, `workspace`, `editor`
+(the live Monaco editor and its events), `ui` (status bar, quick pick, input, notifications,
+sidebar views, widgets, themes, CSS), `settings`, `monaco`, `exec(argv, { cwd, env })` to run
+any program, and `plugin` (`id`, `dir`, `dataDir`, `config()` = `[plugins.<id>]` from config.toml).
 
-## Layout
+**Plugins: Create New Plugin** scaffolds one. Example: [`examples/plugins/word-count.js`](examples/plugins/word-count.js).
+
+## Project structure
 
 ```
-src-tauri/src/   Rust: fsops (files, exec), search (fuzzy + ripgrep), git (libgit2), watcher (notify), config (TOML, validation, CLI)
-src-tauri/defaults/config.toml   default config = the schema
-src/core/        commands, keybindings, settings, themes, Monaco setup
-src/workbench/   editor groups/tabs/splits, documents, diff gutter, built-in commands, workspace
-src/views/       explorer, search, source control
-src/plugins/     plugin host and API
+src-tauri/src/                   Rust: files and exec, search (fuzzy + ripgrep's engine), git (libgit2),
+                                 file watching, terminal (PTY), config (TOML, validation, CLI), layouts
+src-tauri/defaults/config.toml   the default config, which is also the schema
+src/core/                        commands, keybindings, settings, themes, Monaco setup
+src/workbench/                   editor groups, tabs and splits, documents, diff gutter, terminal,
+                                 built-in commands, workspace
+src/ui/                          layout renderer, widgets, status bar, notifications
+src/views/                       explorer, search, source control
+src/plugins/                     plugin host and API
 ```
 
-Dev self-test: `SLATE_SELFTEST=1 src-tauri/target/debug/slate <git repo>` (with `npm run dev` running).
+```bash
+npm run typecheck                         # TypeScript
+cd src-tauri && cargo test                # Rust
+SUMI_SELFTEST=1 src-tauri/target/debug/sumi <git repo>   # dev smoke test (with `npm run dev` running)
+```
+
+Sumi was called Slate before; old config folders (`~/.config/slate`), `SLATE_CONFIG_DIR` and
+`slate-plugin.toml` manifests still work.
