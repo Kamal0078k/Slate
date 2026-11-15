@@ -597,15 +597,19 @@ export function registerCoreCommands() {
       onActive: (item) => item && settings.setSession("theme.name", item.id),
     });
     if (pick) {
-      await api.configSet(["theme", "name"], pick.id);
-      if (settings.get("theme.auto_switch")) await api.configSet(["theme", "auto_switch"], false);
+      // With a layout active, the choice belongs to that layout ([layouts.<name>] in config.toml),
+      // since the layout's own theme would otherwise win over a shared [theme].
+      const layout = settings.get<string>("layout", "");
+      const base = layout ? ["layouts", layout, "theme"] : ["theme"];
+      await api.configSet([...base, "name"], pick.id);
+      if (settings.get("theme.auto_switch")) await api.configSet([...base, "auto_switch"], false);
     }
     settings.setSession("theme.name", undefined);
   });
   r("workbench.action.selectLayout", "Config: Layout", async () => {
     const current = settings.get<string>("layout", "");
     const items = [{ label: "(none)", description: "Slate defaults", id: "" }, ...configStatus.layouts.map((id) => ({ label: id, description: id === current ? "current" : "", id }))];
-    const pick = await showQuickPick({ placeholder: "Select a layout from ~/.config/slate/layouts", items });
+    const pick = await showQuickPick({ placeholder: "Select a layout (a named config) from ~/.config/slate/layouts", items });
     if (pick) await api.configSet(["layout"], pick.id);
   });
   r("workbench.action.createTheme", "Config: Create Theme...", async () => {
@@ -615,10 +619,12 @@ export function registerCoreCommands() {
     await api.writeFile(path, THEME_TEMPLATE(name));
     await openFile(path);
   });
-  r("workbench.action.openLayout", "Config: Open Current Layout File", () => {
+  r("workbench.action.openLayout", "Config: Open Current Layout File", async () => {
     const current = settings.get<string>("layout", "");
     if (!current) return notify('No layout selected. Set layout = "<name>" in config.toml or run "Config: Layout".', "warning");
-    return openFile(join(join(state.configDir, "layouts"), `${current}.toml`));
+    const dir = join(state.configDir, "layouts");
+    const names = new Set((await api.readDir(dir).catch(() => [])).map((e) => e.name));
+    return openFile(join(dir, names.has(`${current}.json`) ? `${current}.json` : `${current}.toml`));
   });
 
   // [[keys.command]] type = "shell": run detached from the folder root with context env vars.

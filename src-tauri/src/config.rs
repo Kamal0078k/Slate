@@ -263,15 +263,28 @@ fn read_table(path: &Path, label: &str, diags: &mut Vec<String>) -> Option<Table
     }
 }
 
-/// Defaults, then the layout preset named by `layout`, then config.toml. Never fails:
-/// problems become diagnostics and the affected values fall back.
+/// Defaults, then config.toml (shared settings), then the layout named by `layout`, then
+/// config.toml's `[layouts.<name>]` overrides for that layout. A layout is a named config:
+/// switching layouts switches everything it sets. Never fails: problems become diagnostics
+/// and the affected values fall back.
 pub fn parse_config() -> Parsed {
     let defaults: Table = DEFAULT_CONFIG.parse().expect("bundled default config is valid TOML");
     let mut effective = defaults.clone();
     let mut diagnostics = Vec::new();
     let path = config_path();
     let exists = path.exists();
-    let user = if exists { read_table(&path, "config.toml", &mut diagnostics) } else { None };
+    let mut user = if exists { read_table(&path, "config.toml", &mut diagnostics) } else { None };
+    let mut overrides = match user.as_mut().and_then(|u| u.remove("layouts")) {
+        Some(Value::Table(t)) => t,
+        Some(_) => {
+            diagnostics.push("invalid value for [layouts]: expected tables like [layouts.<name>]; ignoring".into());
+            Table::new()
+        }
+        None => Table::new(),
+    };
+    if let Some(user) = &user {
+        merge(&mut effective, &defaults, user, "", &mut diagnostics);
+    }
 
     let layout = user.as_ref().and_then(|u| u.get("layout")).and_then(Value::as_str).unwrap_or("").to_string();
     let mut tree = None;
@@ -286,7 +299,8 @@ pub fn parse_config() -> Parsed {
             let json_label = format!("layouts/{layout}.json");
             match fs::read_to_string(&json_path) {
                 Ok(text) => {
-                    if let Some(file) = crate::layout::parse(&text, &json_label, &mut diagnostics) {
+                    if let Some(mut file) = crate::layout::parse(&text, &json_label, &mut diagnostics) {
+                        file.config.remove("layout"); // a layout can't pull in another layout
                         let mut layout_diags = Vec::new();
                         merge(&mut effective, &defaults, &file.config, "", &mut layout_diags);
                         diagnostics.extend(layout_diags.into_iter().map(|d| format!("{json_label}: {d}")));
@@ -305,8 +319,16 @@ pub fn parse_config() -> Parsed {
             diagnostics.extend(layout_diags.into_iter().map(|d| format!("{label}: {d}")));
         }
     }
-    if let Some(user) = user {
-        merge(&mut effective, &defaults, &user, "", &mut diagnostics);
+    match overrides.remove(&layout) {
+        Some(Value::Table(mut t)) if !layout.is_empty() => {
+            t.remove("layout");
+            let label = format!("config.toml [layouts.{layout}]");
+            let mut layout_diags = Vec::new();
+            merge(&mut effective, &defaults, &t, "", &mut layout_diags);
+            diagnostics.extend(layout_diags.into_iter().map(|d| format!("{label}: {d}")));
+        }
+        Some(_) if !layout.is_empty() => diagnostics.push(format!("config.toml [layouts.{layout}]: expected a table; ignoring")),
+        _ => {}
     }
     Parsed { exists, effective, diagnostics, tree, traffic_lights }
 }
@@ -619,8 +641,9 @@ pub fn config_set(key: Vec<String>, value: serde_json::Value) -> Result<(), Stri
     let mut table = doc.as_table_mut();
     for name in tables {
         if !table.contains_key(name) {
+            // Implicit: no empty headers for intermediate tables like [layouts].
             let mut t = toml_edit::Table::new();
-            t.set_implicit(false);
+            t.set_implicit(true);
             table.insert(name, toml_edit::Item::Table(t));
         }
         table = table[name.as_str()].as_table_mut().ok_or_else(|| format!("{name} is not a table"))?;
@@ -720,5 +743,63 @@ pub fn run_cli() -> Option<i32> {
             Some(0)
         }
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn get<'a>(t: &'a Table, path: &[&str]) -> &'a Value {
+        let (last, rest) = path.split_last().unwrap();
+        let mut cur = t;
+        for k in rest {
+            cur = cur[*k].as_table().unwrap();
+        }
+        &cur[*last]
+    }
+
+    /// defaults < config.toml < layout < [layouts.<name>]: a layout is a named config.
+    #[test]
+    fn layout_overrides_config_and_layouts_table_overrides_layout() {
+        let dir = std::env::temp_dir().join(format!("slate-config-test-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(dir.join("layouts")).unwrap();
+        fs::write(
+            dir.join("config.toml"),
+            r#"layout = "pretty"
+[editor]
+font_size = 11
+font_family = "Shared Mono"
+[search]
+max_file_size_kb = 77
+[layouts.pretty.theme]
+name = "tweaked"
+[layouts.other.editor]
+font_size = 50
+"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("layouts/pretty.json"),
+            r#"{ "id": "root", "type": "row", "theme": "pretty-theme", "font_size": 15,
+                 "config": { "layout": "loop", "editor": { "minimap": { "enabled": false } } },
+                 "children": [ { "type": "block", "content": { "editor": true } } ] }"#,
+        )
+        .unwrap();
+        std::env::set_var("SLATE_CONFIG_DIR", &dir);
+        let p = parse_config();
+        std::env::remove_var("SLATE_CONFIG_DIR");
+        let _ = fs::remove_dir_all(&dir);
+
+        assert!(p.diagnostics.is_empty(), "{:?}", p.diagnostics);
+        let e = &p.effective;
+        assert_eq!(get(e, &["editor", "font_size"]).as_integer(), Some(15), "layout beats config.toml");
+        assert_eq!(get(e, &["editor", "font_family"]).as_str(), Some("Shared Mono"), "config.toml fills what the layout leaves");
+        assert_eq!(get(e, &["search", "max_file_size_kb"]).as_integer(), Some(77));
+        assert_eq!(get(e, &["editor", "minimap", "enabled"]).as_bool(), Some(false), "layout \"config\" applies");
+        assert_eq!(get(e, &["theme", "name"]).as_str(), Some("tweaked"), "[layouts.<name>] beats the layout");
+        assert_eq!(get(e, &["layout"]).as_str(), Some("pretty"), "a layout can't switch layouts");
+        assert!(e.get("layouts").is_none());
     }
 }

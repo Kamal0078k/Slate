@@ -9,11 +9,15 @@
 #
 # Slate itself ships no themes or looks. Put them in this folder:
 #   themes/<name>.toml    every color of a theme (see "Config: Create Theme")
-#   layouts/<name>.toml   a look: any settings from this file (panes, title bar, sidebar,
-#                         status bar, background, theme...), shared as one preset
-# Settings apply in this order: Slate defaults < the layout below < this file.
+#   layouts/<name>.json   a named config: the whole window (node tree) + its look and any
+#                         settings from this file under "config"
+#   layouts/<name>.toml   or just a settings preset (any settings from this file)
+# Settings apply in this order:
+#   Slate defaults < this file < the layout below < [layouts.<name>] in this file
+# so keep shared settings (search, keys...) here and the look in each layout. Switch with
+# "Config: Layout". [layouts.<name>] holds per-layout tweaks ("Config: Color Theme" saves there).
 
-# Layout preset from layouts/<name>.toml; "" = none.
+# The active layout (layouts/<name>.json or .toml); "" = none.
 layout = ""
 
 [theme]

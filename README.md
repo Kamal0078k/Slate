@@ -36,8 +36,8 @@ Slate ships an engine and one plain theme (`default`). Every look lives in
 `~/.config/slate/` (`$XDG_CONFIG_HOME/slate`, `%APPDATA%\slate` on Windows):
 
 ```
-config.toml            personal settings + which layout/theme to use
-layouts/<name>.json    a whole window: node tree + look (titlebar, theme, fonts, colors)
+config.toml            shared settings + which layout to use (+ [layouts.<name>] tweaks)
+layouts/<name>.json    a named config: whole window + look (titlebar, theme, fonts, colors, any setting)
 layouts/<name>.toml    or just a settings preset (any config.toml keys)
 themes/<name>.toml     every color of a theme ("Config: Create Theme" writes a template)
 widgets/<name>/main.js your own UI blocks, placed by layouts (hot-reloaded on save)
@@ -51,7 +51,11 @@ slate config check       # validate config.toml, the layout, themes, plugins
 slate config path
 ```
 
-Settings apply as: Slate defaults < the layout < config.toml. Invalid values are ignored with
+Settings apply as: Slate defaults < config.toml < the layout < `[layouts.<name>]` in config.toml.
+A layout is a named config: keep shared settings (search excludes, keys) in config.toml and the
+look (theme, fonts, cursor, minimap, panes) in each layout, then switch with "Config: Layout".
+Any config.toml setting can go in a layout's root `"config"` object, e.g.
+`"config": { "editor": { "minimap": { "enabled": false } } }`. Invalid values are ignored with
 a warning ("unknown config key …; did you mean …?") and never stop the app. Everything reloads
 live on save (plugins need F5; the title bar needs a restart).
 
