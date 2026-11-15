@@ -1,0 +1,183 @@
+# Slate configuration
+#
+# Location: ~/.config/slate/config.toml  ($XDG_CONFIG_HOME/slate, Windows: %APPDATA%\slate)
+# Slate works without this file. Print every default with:   slate --default-config
+# Check your file for mistakes with:                          slate config check
+#
+# Unknown keys and invalid values are ignored with a warning and fall back to the
+# defaults below. Changes apply live when the file is saved.
+#
+# Slate itself ships no themes or looks. Put them in this folder:
+#   themes/<name>.toml    every color of a theme (see "Config: Create Theme")
+#   layouts/<name>.toml   a look: any settings from this file (panes, title bar, sidebar,
+#                         status bar, background, theme...), shared as one preset
+# Settings apply in this order: Slate defaults < the layout below < this file.
+
+# Layout preset from layouts/<name>.toml; "" = none.
+layout = ""
+
+[theme]
+# A theme file name from themes/, or "default" (the only built-in theme).
+name = "default"
+# Follow the OS light/dark appearance, using light_name / dark_name.
+auto_switch = false
+light_name = "default"
+dark_name = "default"
+
+# Override individual colors of the active theme. Keys are the same as the [colors]
+# table of a theme file (accent, background, foreground, border, ...). Raw CSS
+# variables work too, e.g. "--tab-active-fg" = "#ffffff".
+[theme.custom]
+
+[ui]
+# "left" or "right"
+sidebar_position = "left"
+# Views stacked in the sidebar, top to bottom (herdr style). Use one entry for a
+# single view at a time. Views: "explorer", "scm", "search", or a plugin view id.
+sidebar_sections = ["explorer"]
+sidebar_width = 260
+# The vertical icon strip next to the sidebar.
+activity_bar = true
+# "flush": editor groups edge to edge (VS Code). "framed": padded, rounded, bordered
+# panes with gaps between them, the focused one outlined in the accent color (herdr).
+pane_style = "flush"
+# Gap around and between framed panes, and their corner radius, in pixels.
+pane_gap = 8
+pane_radius = 3
+# macOS title bar: "native", or "hidden" (herdr style: traffic lights over the sidebar,
+# drag the window from the top of the sidebar or empty tab-bar space). Needs a restart.
+titlebar = "native"
+# Height of each editor group's tab bar (herdr's pane header is 30).
+tab_height = 35
+# Text drawn before stacked sidebar section titles, e.g. "▌".
+section_marker = ""
+# UI font; "" = Geist (bundled, herdr's default). Also bundled: "Geist Mono", "JetBrains Mono".
+# Fonts dropped in ~/.config/slate/fonts/ work too (file name = family name).
+font_family = ""
+font_size = 13
+# Items on the right of the status bar, before the cursor position:
+#   { type = "text", text = "prod" }
+#   { type = "datetime", format = "%H:%M" }
+#   { type = "command", command = "git rev-parse --short HEAD", interval_seconds = 30 }
+status_right = []
+
+# Window background image, like WezTerm's background layers / backdrops.
+[ui.background]
+# An image file or a folder of images (jpg, png, gif, webp, svg). Empty = no image.
+# e.g. "~/.config/wezterm/backdrops" to share WezTerm's wallpapers.
+source = ""
+# "random" picks a new image at every launch, "first" the first one, "last" the last one shown.
+pick = "random"
+# Opacity of the theme's background color laid over the image
+# (0 = image only, 1 = image hidden). WezTerm's backdrops use 0.96.
+overlay_opacity = 0.96
+# "cover" or "contain"
+size = "cover"
+# "window" (behind everything) or "editor" (behind the editor area only, like herdr's
+# work-area background).
+area = "window"
+# Start without the image (toggle with background_toggle_focus).
+focus_mode = false
+
+# Any Monaco editor option, in snake_case (font_size, word_wrap, minimap.enabled...).
+# Options not listed here are passed through as well.
+[editor]
+# Same defaults as the herdr app: JetBrains Mono 14 (bundled with Slate).
+font_size = 14
+font_family = "JetBrains Mono"
+tab_size = 4
+insert_spaces = true
+detect_indentation = true
+# "off", "on", "wordWrapColumn", "bounded"
+word_wrap = "off"
+# "on", "off", "relative", "interval"
+line_numbers = "on"
+# "none", "boundary", "selection", "trailing", "all"
+render_whitespace = "selection"
+# "blink", "smooth", "phase", "expand", "solid"
+cursor_blinking = "blink"
+smooth_scrolling = true
+format_on_save = false
+rulers = []
+
+[editor.minimap]
+enabled = true
+
+[files]
+# "off" or "after_delay"
+auto_save = "off"
+auto_save_delay = 1000
+trim_trailing_whitespace = false
+insert_final_newline = false
+
+[search]
+# Globs always excluded from search, on top of .gitignore.
+exclude = ["node_modules", "dist", "target", ".next", "*.lock"]
+# Skip files bigger than this in search (KB); 0 = no limit. Huge generated or log files
+# are usually what makes search slow.
+max_file_size_kb = 2048
+
+[scm]
+# Changed-line markers in the editor gutter.
+diff_decorations = true
+
+# Key bindings for built-in actions. "mod" is Cmd on macOS, Ctrl elsewhere.
+# Set an action to "" to unbind it, or to a list for several keys.
+[keys]
+quick_open = "mod+p"
+command_palette = ["mod+shift+p", "f1"]
+go_to_line = "ctrl+g"
+go_to_symbol = "mod+shift+o"
+open_folder = "mod+o"
+new_file = "mod+n"
+save = "mod+s"
+save_as = "mod+shift+s"
+save_all = "mod+alt+s"
+close_editor = "mod+w"
+reopen_closed_editor = "mod+shift+t"
+split_right = "mod+\\"
+split_down = ""
+focus_group_1 = "mod+1"
+focus_group_2 = "mod+2"
+focus_group_3 = "mod+3"
+next_editor = ["mod+alt+right", "ctrl+tab"]
+previous_editor = ["mod+alt+left", "ctrl+shift+tab"]
+toggle_sidebar = "mod+b"
+show_explorer = "mod+shift+e"
+find_in_files = "mod+shift+f"
+replace_in_files = "mod+shift+h"
+show_scm = "ctrl+shift+g"
+open_config = "mod+,"
+zoom_in = "mod+="
+zoom_out = "mod+-"
+zoom_reset = "mod+0"
+toggle_word_wrap = "alt+z"
+reload_window = "f5"
+# Copy the active file's path (or the explorer selection when the explorer has focus).
+copy_path = "mod+alt+c"
+copy_relative_path = "mod+alt+shift+c"
+# Relative path with line, e.g. app/models/user.rb:42 or :10-20 for a selection.
+copy_reference = "mod+alt+l"
+background_random = "mod+alt+/"
+background_next = "mod+alt+."
+background_previous = "mod+alt+,"
+background_select = "mod+ctrl+/"
+background_toggle_focus = "mod+alt+b"
+
+# Bind any command id (Slate, Monaco or plugin) to a key:
+#   [[keys.bind]]
+#   key = "mod+shift+k"
+#   command = "editor.action.deleteLines"
+#
+# Run a shell command (detached, from the folder root). It receives SLATE_ROOT,
+# SLATE_FILE, SLATE_LINE, SLATE_COLUMN and SLATE_SELECTION:
+#   [[keys.command]]
+#   key = "mod+alt+g"
+#   type = "shell"            # "shell", "command" or "plugin_action"
+#   command = "open -a Ghostty \"$SLATE_ROOT\""
+#   description = "open terminal here"
+
+[plugins]
+# Plugin ids to skip without deleting them.
+disabled = []
+# Per-plugin settings go in [plugins.<id>] tables and are passed to that plugin.

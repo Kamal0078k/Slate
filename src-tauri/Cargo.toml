@@ -1,0 +1,36 @@
+[package]
+name = "slate"
+version = "0.1.0"
+description = "A fast, hackable desktop text editor: Rust core, JS customization"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ignore = "0.4"
+grep-searcher = "0.1"
+grep-regex = "0.1"
+grep-matcher = "0.1"
+regex = "1"
+git2 = { version = "0.20", default-features = false }
+nucleo-matcher = "0.3"
+notify = "8"
+trash = "5"
+toml = "0.8"
+toml_edit = "0.22"
+tauri-plugin-clipboard-manager = "2"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+
+# Optimize dependencies (regex, ripgrep, libgit2...) even in dev builds so search and git
+# stay fast under `npm run tauri dev`; our own crate still compiles quickly.
+[profile.dev.package."*"]
+opt-level = 3

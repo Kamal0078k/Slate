@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Slate</title>
+  </head>
+  <body>
+    <div id="backdrop" hidden></div>
+    <div id="backdrop-overlay" hidden></div>
+    <!-- Filled by the layout engine (src/ui/sidebar.ts) from layouts/<name>.json -->
+    <div id="layout-root"></div>
+    <!-- Built-in pieces wait here until a layout block places them -->
+    <div id="parking">
+      <main id="editor-area"></main>
+      <footer id="statusbar"><div class="left"></div><div class="right"></div></footer>
+      <nav id="activitybar"></nav>
+    </div>
+    <div id="overlay-root"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
