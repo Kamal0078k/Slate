@@ -3,8 +3,10 @@
 // Monaco moves the editor once per wheel event and rounds each move *up* to a whole pixel.
 // WebKit delivers trackpad scrolling as many tiny events (up to ~250/s, e.g. wheelDeltaY 3 =
 // 1.25 px), so slow swipes were inflated (1.25 px -> 2 px, +60%) and uneven, while fast ones
-// were fine. Here each editor collects the wheel deltas of a frame, keeps the exact total
-// (remainders carry over), and scrolls once per frame. The speed formula is Monaco's/VS Code's
+// were fine. Here each event moves the editor's *exact* (fractional) position and only the
+// rounded result is applied, so remainders carry over instead of being rounded up every time.
+// It's applied immediately (not on the next frame): Monaco already draws once per frame, and
+// deferring added a whole frame of delay (measured 7 ms -> 15 ms from event to redraw). The speed formula is Monaco's/VS Code's
 // own: wheelDeltaY / 120 * 50 px * mouseWheelScrollSensitivity (x fastScrollSensitivity with ⌥).
 // Configured by [ui] editor_wheel = "slate" (default) | "monaco".
 import { monaco } from "../core/monaco";
@@ -95,10 +97,7 @@ function onWheel(e: WheelEvent) {
   }
   p.dy -= ny * factor;
   p.dx -= nx * factor;
-  if (!p.frame) {
-    const target = p;
-    target.frame = requestAnimationFrame(() => flush(ed, target));
-  }
+  flush(ed, p);
 }
 
 /** Installs the handler once; it runs before Monaco's own (capture phase on the window). */
