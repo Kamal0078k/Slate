@@ -87,6 +87,7 @@ export function activeThemeName(): string {
 }
 
 let styleEl: HTMLStyleElement | null = null;
+let themeVarsSet = new Set<string>();
 
 export function applySettings() {
   const name = activeThemeName();
@@ -97,8 +98,11 @@ export function applySettings() {
   const root = document.documentElement;
   root.dataset.theme = theme.light ? "light" : "dark";
   root.classList.toggle("theme-glow", theme.glow);
-  for (const prop of [...root.style]) if (prop.startsWith("--")) root.style.removeProperty(prop);
+  // Only clear the variables the previous theme set; the layout engine owns others
+  // (pane frames, editor opacity, terminal padding, tab height).
+  for (const prop of themeVarsSet) if (!(prop in theme.vars)) root.style.removeProperty(prop);
   for (const [k, v] of Object.entries(theme.vars)) root.style.setProperty(k, v);
+  themeVarsSet = new Set(Object.keys(theme.vars));
   root.style.setProperty("--font-ui", withFallback(settings.get<string>("ui.font_family", ""), UI_FALLBACK));
   void ensureFamilies(settings.get<string>("ui.font_family", ""), settings.get<string>("editor.font_family", ""));
   root.style.setProperty("--font-size-ui", `${settings.get<number>("ui.font_size", 13)}px`);

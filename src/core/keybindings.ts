@@ -43,12 +43,17 @@ export const ACTIONS: Record<string, string> = {
   copy_path: "copyFilePath",
   copy_relative_path: "copyRelativeFilePath",
   copy_reference: "copyFileReference",
+  toggle_terminal: "terminal.toggle",
+  new_terminal: "terminal.new",
   background_random: "background.random",
   background_next: "background.next",
   background_previous: "background.previous",
   background_select: "background.select",
   background_toggle_focus: "background.toggleFocus",
 };
+
+/** Commands whose keys work even while a terminal has focus. */
+const TERMINAL_KEYS = new Set(["terminal.toggle", "terminal.new"]);
 
 let configBindings: Keybinding[] = [];
 const pluginBindings: Keybinding[] = [];
@@ -169,6 +174,10 @@ export function installKeybindings() {
       if (!key) return;
       const binding = table.get(key);
       if (!binding) return;
+      // In a terminal the shell gets the keys (Ctrl+C, Ctrl+R, Esc, Option+…), except Slate's
+      // ⌘ shortcuts (Ctrl+Shift on Windows/Linux) and the terminal toggles themselves.
+      const inTerminal = !!(e.target as HTMLElement | null)?.closest?.(".terminal-host");
+      if (inTerminal && !(isMac ? e.metaKey : e.ctrlKey && e.shiftKey) && !TERMINAL_KEYS.has(binding.command)) return;
       e.preventDefault();
       e.stopPropagation();
       void executeCommand(binding.command, binding.args);

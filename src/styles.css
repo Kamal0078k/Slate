@@ -625,3 +625,19 @@ input, textarea { user-select: text; -webkit-user-select: text; }
 .scm-section { cursor: pointer; padding-left: 4px; }
 .scm-section:hover { background: var(--hover-bg); }
 .scm-section .twist { width: 16px; }
+
+/* ---- integrated terminal ---- */
+.terminal-area { background: var(--bg); }
+.layout-backdrop .terminal-area, .has-backdrop .terminal-area { background: transparent; }
+.terminal-host { position: absolute; inset: 0; padding: var(--terminal-padding, 6px 10px); }
+.terminal-host .xterm { height: 100%; }
+.terminal-host .xterm-viewport { background: transparent !important; }
+.terminal-host .xterm-viewport::-webkit-scrollbar { width: 10px; }
+
+/* layout background images: their own composited layer under the node's content */
+.node.has-image > .node-image {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background-position: center; background-repeat: no-repeat;
+  will-change: transform; transform: translateZ(0);
+}
+.node.has-image > :not(.node-image) { position: relative; z-index: 1; }

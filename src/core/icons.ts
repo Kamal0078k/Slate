@@ -27,6 +27,7 @@ export const icons = {
   branch: svg('<circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="7" r="2"/><path d="M6 7v10M18 9c0 4-6 3-12 8"/>', 14),
   folder: svg('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'),
   file: svg('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>'),
+  terminal: svg('<path d="m5 8 4 4-4 4M12 17h7"/>'),
   replaceAll: svg('<path d="M4 7h11l-3-3M20 17H9l3 3"/>'),
 };
 

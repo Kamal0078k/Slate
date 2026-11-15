@@ -9,6 +9,7 @@ import { copyText, basename, bus, debounce, dirname, h, relative } from "../core
 import { askSave, contextMenu } from "../ui/notify";
 import { diffLines } from "./dirtydiff";
 import { Doc, docName, isDirty, newUntitled, openDoc, releaseDoc, retainDoc, saveDoc } from "./documents";
+import { TerminalSession } from "./terminal";
 
 interface FileTab {
   kind: "file";
@@ -32,7 +33,19 @@ interface DiffTab {
   viewState: monaco.editor.IDiffEditorViewState | null;
 }
 
-export type Tab = FileTab | DiffTab;
+interface TerminalTab {
+  kind: "terminal";
+  id: number;
+  session: TerminalSession;
+  preview: false;
+  viewState: null;
+}
+
+/**
+ * A tab can have a hidden "twin": ⌃` flips a file tab into a terminal in the same spot and
+ * back again. The hidden side stays alive (the file keeps its edits, the shell keeps running).
+ */
+export type Tab = (FileTab | DiffTab | TerminalTab) & { twin?: Tab };
 
 interface GroupNode {
   kind: "group";
@@ -61,6 +74,7 @@ export class EditorGroup {
   readonly bodyEl = h("div.group-body");
   readonly editorHost = h("div.editor-host");
   readonly diffHost = h("div.editor-host", { hidden: true });
+  readonly termHost = h("div.editor-host.terminal-area", { hidden: true });
   readonly emptyEl = h("div.watermark");
   readonly editor: monaco.editor.IStandaloneCodeEditor;
   diff: monaco.editor.IStandaloneDiffEditor | null = null;
@@ -79,7 +93,7 @@ export class EditorGroup {
     const tabBar = h("div.tabbar", null, this.tabsEl, actions);
     // Empty tab-bar space drags the window (matters when the title bar is hidden).
     this.tabsEl.setAttribute("data-tauri-drag-region", "");
-    this.bodyEl.append(this.editorHost, this.diffHost, this.emptyEl);
+    this.bodyEl.append(this.editorHost, this.diffHost, this.termHost, this.emptyEl);
     this.el.append(tabBar, this.bodyEl);
     this.editor = monaco.editor.create(this.editorHost, { ...editorOptions(), model: null });
     this.decorations = this.editor.createDecorationsCollection();
@@ -141,12 +155,12 @@ export class EditorGroup {
 
   /** The focused code editor: the plain editor, or the modified side of a diff. */
   codeEditor(): monaco.editor.ICodeEditor | null {
-    if (!this.active) return null;
+    if (!this.active || this.active.kind === "terminal") return null;
     return this.active.kind === "diff" ? this.diff!.getModifiedEditor() : this.editor;
   }
 
   activeDoc(): Doc | null {
-    if (!this.active) return null;
+    if (!this.active || this.active.kind === "terminal") return null;
     return this.active.kind === "file" ? this.active.doc : this.active.modifiedDoc;
   }
 
@@ -234,6 +248,11 @@ export class EditorGroup {
         if (tab.viewState) diff.restoreViewState(tab.viewState);
       }
       diff.getModifiedEditor().updateOptions({ readOnly: tab.staged || !tab.modifiedDoc });
+    } else if (tab?.kind === "terminal") {
+      // Only the active terminal is shown; its element moves here if the tab came from another group.
+      for (const el of [...this.termHost.children] as HTMLElement[]) el.hidden = el !== tab.session.el;
+      if (tab.session.el.parentElement !== this.termHost) this.termHost.append(tab.session.el);
+      tab.session.el.hidden = false;
     }
     if (tab?.kind !== "file") this.editor.setModel(null);
     this.update();
@@ -246,12 +265,20 @@ export class EditorGroup {
     const kind = this.active?.kind;
     this.editorHost.hidden = kind !== "file";
     this.diffHost.hidden = kind !== "diff";
+    this.termHost.hidden = kind !== "terminal";
+    if (this.active?.kind === "terminal") requestAnimationFrame(() => (this.active as TerminalTab | null)?.session?.layout());
     this.emptyEl.hidden = !!kind;
     this.renderTabs();
   }
 
+  /** The most recently shown tab in this pane matching `test` (other than the active one). */
+  recentTab(test: (t: Tab) => boolean): Tab | undefined {
+    return this.mru.find((t) => t !== this.active && test(t)) ?? this.tabs.find((t) => t !== this.active && test(t));
+  }
+
   focus() {
-    if (this.active) this.codeEditor()?.focus();
+    if (this.active?.kind === "terminal") this.active.session.focus();
+    else if (this.active) this.codeEditor()?.focus();
     else this.el.focus();
   }
 
@@ -268,6 +295,20 @@ export class EditorGroup {
       }
     }
     if (!this.tabs.includes(tab)) return true;
+    // Closing one side of a flipped tab brings the other side back in its place
+    // (⌘W on the terminal returns to the file).
+    const twin = tab.twin;
+    if (twin && !this.tabs.includes(twin)) {
+      tab.twin = undefined;
+      twin.twin = undefined;
+      this.tabs[this.tabs.indexOf(tab)] = twin;
+      this.mru = this.mru.filter((t) => t !== tab);
+      this.disposeTab(tab);
+      this.activate(twin);
+      this.focus();
+      scheduleSessionSave();
+      return true;
+    }
     if (tab.kind === "file" && !tab.doc.untitled) {
       closedStack.push(tab.doc.path);
       if (closedStack.length > 50) closedStack.shift();
@@ -296,6 +337,7 @@ export class EditorGroup {
     this.tabs = this.tabs.filter((t) => t !== tab);
     this.mru = this.mru.filter((t) => t !== tab);
     if (tab.kind === "file") releaseDoc(tab.doc);
+    else if (tab.kind === "terminal") tab.session.dispose();
     else {
       if (this.diff?.getModel()?.original === tab.original) this.diff.setModel(null);
       tab.original.dispose();
@@ -322,8 +364,20 @@ export class EditorGroup {
     this.activate(tab);
   }
 
+  /** Puts `next` in `current`'s place in the tab bar (`current` stays alive, just hidden). */
+  replaceTab(current: Tab, next: Tab) {
+    const i = this.tabs.indexOf(current);
+    if (i < 0) return;
+    this.tabs[i] = next;
+    this.mru = this.mru.filter((t) => t !== current);
+    this.activate(next);
+  }
+
   dispose() {
-    for (const t of [...this.tabs]) this.disposeTab(t);
+    for (const t of [...this.tabs]) {
+      if (t.twin && !this.tabs.includes(t.twin)) this.disposeTab(t.twin); // hidden side too
+      this.disposeTab(t);
+    }
     this.editor.dispose();
     this.diff?.dispose();
     this.el.remove();
@@ -333,6 +387,7 @@ export class EditorGroup {
 
   tabTitle(tab: Tab) {
     if (tab.kind === "file") return docName(tab.doc);
+    if (tab.kind === "terminal") return tab.session.title;
     return `${basename(tab.path)} (${tab.staged ? "Index" : "Working Tree"})`;
   }
 
@@ -340,8 +395,8 @@ export class EditorGroup {
     const names = this.tabs.map((t) => this.tabTitle(t));
     this.tabsEl.replaceChildren(
       ...this.tabs.map((tab, i) => {
-        const dirty = tab.kind === "file" ? isDirty(tab.doc) : !!tab.modifiedDoc && isDirty(tab.modifiedDoc);
-        const path = tab.kind === "file" ? tab.doc.path : tab.path;
+        const dirty = tab.kind === "file" ? isDirty(tab.doc) : tab.kind === "diff" ? !!tab.modifiedDoc && isDirty(tab.modifiedDoc) : false;
+        const path = tab.kind === "file" ? tab.doc.path : tab.kind === "diff" ? tab.path : "";
         const duplicate = names.filter((n) => n === names[i]).length > 1;
         const cls = ["tab", tab === this.active && "active", tab.preview && "preview", dirty && "dirty", tab.kind === "diff" && "diff"]
           .filter(Boolean)
@@ -351,7 +406,7 @@ export class EditorGroup {
           {
             className: cls,
             draggable: true,
-            title: tab.kind === "file" && tab.doc.untitled ? names[i] : relative(state.root, path),
+            title: tab.kind === "terminal" ? `Terminal: ${names[i]}` : tab.kind === "file" && tab.doc.untitled ? names[i] : relative(state.root, path),
             "data-id": tab.id,
             onmousedown: (e: MouseEvent) => {
               if (e.button === 0) {
@@ -374,7 +429,7 @@ export class EditorGroup {
               this.tabMenu(tab, e.clientX, e.clientY);
             },
           },
-          h("span.tab-icon", { html: fileIcon(path) }),
+          h("span.tab-icon", { html: tab.kind === "terminal" ? `<span class="file-icon">${icons.terminal}</span>` : fileIcon(path) }),
           h("span.tab-label", null, names[i]),
           duplicate && tab.kind === "file" && !tab.doc.untitled ? h("span.tab-desc", null, basename(dirname(path))) : null,
           h("button.tab-close", {
@@ -394,8 +449,8 @@ export class EditorGroup {
   }
 
   private tabMenu(tab: Tab, x: number, y: number) {
-    const path = tab.kind === "file" ? tab.doc.path : tab.path;
-    const isFile = !(tab.kind === "file" && tab.doc.untitled);
+    const path = tab.kind === "file" ? tab.doc.path : tab.kind === "diff" ? tab.path : "";
+    const isFile = tab.kind !== "terminal" && !(tab.kind === "file" && tab.doc.untitled);
     contextMenu(x, y, [
       { label: "Close", action: () => this.closeTab(tab), keybinding: keyLabelFor("workbench.action.closeActiveEditor") },
       { label: "Close Others", action: () => this.closeAll(tab) },
@@ -501,7 +556,7 @@ bus.on("git", () => {
 });
 bus.on("doc-dirty", (doc: Doc) => {
   for (const g of allGroups()) {
-    if (g.tabs.some((t) => (t.kind === "file" ? t.doc : t.modifiedDoc) === doc)) g.renderTabs();
+    if (g.tabs.some((t) => (t.kind === "file" ? t.doc : t.kind === "diff" ? t.modifiedDoc : null) === doc)) g.renderTabs();
     if (g.activeDoc() === doc) g.updateDirtyDiff();
   }
 });
@@ -605,22 +660,23 @@ function replaceNode(old: LayoutNode, next: LayoutNode) {
 }
 
 /** Splits `group`, opening `tab` (default: the active tab) in the new group. */
-export function splitGroup(group: EditorGroup, dir: "row" | "col", tab: Tab | null = group.active): EditorGroup {
+export function splitGroup(group: EditorGroup, dir: "row" | "col", tab: Tab | null = group.active, newShare = 0.5): EditorGroup {
   const ng = new EditorGroup();
   const node = group.node;
   const newNode: GroupNode = { kind: "group", group: ng, parent: null, size: node.size };
   ng.node = newNode;
   if (node.parent && node.parent.dir === dir) {
     const p = node.parent;
-    newNode.size = node.size / 2;
-    node.size /= 2;
+    newNode.size = node.size * newShare;
+    node.size *= 1 - newShare;
     p.children.splice(p.children.indexOf(node) + 1, 0, newNode);
     newNode.parent = p;
   } else {
     const split: SplitNode = { kind: "split", dir, children: [node, newNode], parent: null, size: node.size };
     replaceNode(node, split);
     node.parent = newNode.parent = split;
-    node.size = newNode.size = 1;
+    node.size = 2 * (1 - newShare);
+    newNode.size = 2 * newShare;
   }
   renderLayout();
   if (tab?.kind === "file") {
@@ -629,6 +685,8 @@ export function splitGroup(group: EditorGroup, dir: "row" | "col", tab: Tab | nu
     if (vs) ng.editor.restoreViewState(vs);
   } else if (tab?.kind === "diff") {
     void ng.openDiff(tab.path, tab.staged, { focus: false });
+  } else if (tab?.kind === "terminal") {
+    void openTerminal(ng, tab.session.cwd); // splitting a terminal starts a new one beside it
   }
   setActiveGroup(ng);
   scheduleSessionSave();
@@ -725,6 +783,7 @@ export async function swapDocument(oldDoc: Doc, newPath: string) {
 export function closeTabsUnder(path: string) {
   for (const g of allGroups()) {
     for (const tab of [...g.tabs]) {
+      if (tab.kind === "terminal") continue;
       const p = tab.kind === "file" ? tab.doc.path : tab.path;
       if (p === path || p.startsWith(path + "/") || p.startsWith(path + "\\")) void g.closeTab(tab, true);
     }
@@ -754,15 +813,23 @@ export const scheduleSessionSave = debounce(saveSession, 400);
 
 function saveSession() {
   if (!state.root || !rootNode) return;
-  const ser = (n: LayoutNode): SavedNode => {
-    if (n.kind === "split") return { kind: "split", size: n.size, dir: n.dir, children: n.children.map(ser) };
+  // Panes with nothing restorable (terminals, untitled files) are left out, so they don't
+  // come back as empty panes; a split left with one pane collapses into it.
+  const ser = (n: LayoutNode): SavedNode | null => {
+    if (n.kind === "split") {
+      const children = n.children.map(ser).filter((c): c is SavedNode => !!c);
+      if (!children.length) return null;
+      if (children.length === 1) return { ...children[0], size: n.size };
+      return { kind: "split", size: n.size, dir: n.dir, children };
+    }
     const files = n.group.tabs.filter((t): t is FileTab => t.kind === "file" && !t.doc.untitled);
+    if (!files.length) return null;
     const active = n.group.active?.kind === "file" ? files.indexOf(n.group.active as FileTab) : -1;
     return { kind: "group", size: n.size, files: files.map((t) => t.doc.path), active };
   };
   try {
     const all = JSON.parse(localStorage.getItem(SESSION_KEY) ?? "{}");
-    all[state.root] = ser(rootNode);
+    all[state.root] = ser(rootNode) ?? { kind: "group", size: 1, files: [], active: -1 };
     localStorage.setItem(SESSION_KEY, JSON.stringify(all));
   } catch {
     /* storage unavailable */
@@ -811,4 +878,75 @@ export async function restoreSession() {
   renderLayout();
   await Promise.all(opens);
   bus.emit("active-editor");
+}
+
+
+// ---- terminals ---------------------------------------------------------------------------
+
+/**
+ * Opens a terminal in `group` (default: the active one) and starts the shell. With `replace`,
+ * the terminal takes that tab's place and the two become twins (⌃` flips between them).
+ */
+export async function openTerminal(group: EditorGroup = activeGroup, cwd: string | null = state.root, replace?: Tab) {
+  const session = new TerminalSession(cwd);
+  const tab: Tab = { kind: "terminal", id: tabSeq++, session, preview: false, viewState: null };
+  session.onTitle = () => groupOf(tab)?.renderTabs();
+  // The shell exited (e.g. `exit`): close its tab, like VS Code (a flipped tab shows its file
+  // again). If it exits while hidden behind its file, just unlink it.
+  session.onExit = () => {
+    const g = groupOf(tab);
+    if (g) return void g.closeTab(tab, true);
+    const visibleTwin = tab.twin;
+    if (visibleTwin) visibleTwin.twin = undefined;
+    tab.twin = undefined;
+    session.dispose();
+  };
+  if (replace && group.tabs.includes(replace)) {
+    replace.twin = tab;
+    tab.twin = replace;
+    group.replaceTab(replace, tab);
+  } else {
+    const i = group.active ? group.tabs.indexOf(group.active) + 1 : group.tabs.length;
+    group.tabs.splice(i, 0, tab);
+    group.activate(tab);
+  }
+  setActiveGroup(group, false);
+  await session.start();
+  session.focus();
+  return tab;
+}
+
+function groupOf(tab: Tab) {
+  return allGroups().find((g) => g.tabs.includes(tab));
+}
+
+export function terminalTabs(): { group: EditorGroup; tab: TerminalTab }[] {
+  return allGroups().flatMap((group) => group.tabs.filter((t): t is TerminalTab => t.kind === "terminal").map((tab) => ({ group, tab })));
+}
+
+/** Whether keyboard focus is inside a terminal. */
+export const terminalFocused = () => !!(document.activeElement as HTMLElement | null)?.closest?.(".terminal-host");
+
+/**
+ * ⌃`: flips the tab you're on, in place. A file becomes a terminal in the same spot; pressed
+ * again it flips back to the file, and again to the same terminal (no new shell). In an empty
+ * pane it opens a terminal there.
+ */
+export async function toggleTerminal() {
+  const g = activeGroup;
+  const current = g.active;
+  if (!current) return void (await openTerminal(g));
+  if (current.twin) {
+    g.replaceTab(current, current.twin);
+    g.focus();
+    return;
+  }
+  if (current.kind === "terminal") return; // a separate terminal tab (⌃⇧`): nothing to flip to
+  await openTerminal(g, state.root, current);
+}
+
+/** ⌃⇧`: another terminal tab in the pane you're in. */
+export async function newTerminal() {
+  const current = activeGroup.active;
+  await openTerminal(activeGroup, current?.kind === "terminal" ? current.session.cwd : state.root);
 }

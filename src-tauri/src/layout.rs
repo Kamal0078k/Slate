@@ -13,7 +13,7 @@ const NODE_KEYS: &[&str] = &[
 ];
 const ROOT_KEYS: &[&str] = &[
     "name", "preview", "titlebar", "traffic_lights", "theme", "colors", "font", "font_size", "ui_font",
-    "ui_font_size", "editor_opacity", "config",
+    "ui_font_size", "editor_opacity", "terminal_padding", "config",
 ];
 const BUILTIN_VIEWS: &[&str] = &["explorer", "search", "scm"];
 

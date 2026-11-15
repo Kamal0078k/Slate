@@ -235,13 +235,39 @@ const COLOR_NAMES: Record<string, string> = {
 export const colorValue = (c?: string) => (!c ? "" : COLOR_NAMES[c] ? `var(${COLOR_NAMES[c]})` : c);
 
 const imageUrls = new Map<string, Promise<string | null>>();
+
+/**
+ * Background images, decoded once. SVGs are drawn into a bitmap first: WebKit can otherwise
+ * re-render the vector (and any picture embedded in it) when content above it repaints,
+ * which is what made a see-through editor scroll heavily.
+ */
 function imageUrl(path: string): Promise<string | null> {
   let p = imageUrls.get(path);
   if (!p) {
     // Absolute or ~/ paths as given (Rust expands ~); others are relative to the config folder.
     const abs = path.startsWith("/") || path.startsWith("~") ? path : `${state.configDir}/${path}`;
+    const isSvg = path.toLowerCase().endsWith(".svg");
     p = invoke<ArrayBuffer>("read_image", { path: abs })
-      .then((bytes) => URL.createObjectURL(new Blob([bytes], path.toLowerCase().endsWith(".svg") ? { type: "image/svg+xml" } : undefined)))
+      .then(async (bytes) => {
+        const blob = new Blob([bytes], isSvg ? { type: "image/svg+xml" } : undefined);
+        if (!isSvg) return URL.createObjectURL(blob);
+        const svgUrl = URL.createObjectURL(blob);
+        try {
+          const img = new Image();
+          img.src = svgUrl;
+          await img.decode();
+          // Big enough for a sharp full-window background on a Retina screen, no bigger.
+          const scale = Math.min(2, 2 * Math.max(screen.width / img.naturalWidth, screen.height / img.naturalHeight, 0.5));
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.round(img.naturalWidth * scale);
+          canvas.height = Math.round(img.naturalHeight * scale);
+          canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const png = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/png"));
+          return png ? URL.createObjectURL(png) : svgUrl;
+        } finally {
+          setTimeout(() => URL.revokeObjectURL(svgUrl), 0);
+        }
+      })
       .catch((e) => {
         console.warn(`layout image ${path}: ${e}`);
         return null;
@@ -256,13 +282,15 @@ function paint(el: HTMLElement, node: LayoutNode) {
   if (typeof bg === "string") el.style.background = colorValue(bg);
   else if (bg?.gradient) el.style.background = `linear-gradient(${bg.angle ?? 180}deg, ${bg.gradient.map(colorValue).join(", ")})`;
   else if (bg?.image) {
+    // The image gets its own element (and GPU layer), so scrolling the editor above it
+    // composites over a finished bitmap instead of repainting the background.
     el.classList.add("has-image");
+    const layer = h("div.node-image");
+    el.prepend(layer);
     void imageUrl(bg.image).then((url) => {
       if (!url) return;
-      el.style.backgroundImage = `url("${url}")`;
-      el.style.backgroundSize = bg.fit === "contain" ? "contain" : "cover";
-      el.style.backgroundPosition = "center";
-      el.style.backgroundRepeat = "no-repeat";
+      layer.style.backgroundImage = `url("${url}")`;
+      layer.style.backgroundSize = bg.fit === "contain" ? "contain" : "cover";
     });
   }
   if (node.border) el.style.border = `${node.border.width ?? 1}px solid ${colorValue(node.border.color ?? "border")}`;
@@ -456,6 +484,11 @@ export function render() {
   const under = nodeHasImageAbove(tree);
   document.documentElement.classList.toggle("layout-backdrop", under);
   document.documentElement.style.setProperty("--editor-opacity", String(tree.editor_opacity ?? 1));
+  // herdr's terminal_padding: [vertical, horizontal] space around terminal text.
+  const tp = (tree as { terminal_padding?: number | number[] }).terminal_padding;
+  const pad = Array.isArray(tp) ? tp.map((v) => `${v}px`).join(" ") : tp != null ? `${tp}px` : "";
+  if (pad) document.documentElement.style.setProperty("--terminal-padding", pad);
+  else document.documentElement.style.removeProperty("--terminal-padding");
   if (under !== editorUnderImage) {
     editorUnderImage = under;
     state.layoutBackdrop = under;

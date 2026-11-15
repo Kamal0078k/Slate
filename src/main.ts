@@ -72,6 +72,8 @@ if (import.meta.env.DEV) {
     };
   }
   window.addEventListener("error", (e) => send("uncaught", [e.error ?? e.message]));
+  // Test hook for dev self-tests only.
+  void import("./workbench/groups").then((g) => ((window as any).__slateDebug = { groups: g }));
   window.addEventListener("unhandledrejection", (e) => !e.defaultPrevented && send("unhandled-rejection", [e.reason]));
 }
 
@@ -103,10 +105,12 @@ async function boot() {
   }
   const winInfo = await invoke<{ titlebarHidden: boolean }>("window_info").catch(() => ({ titlebarHidden: false }));
   document.documentElement.classList.toggle("titlebar-hidden", winInfo.titlebarHidden);
+  // An image behind the editor (layout node background) switches the editor to see-through.
+  // Listen before the first layout render: that render is what reports it.
+  bus.on("layout-backdrop", () => applySettings());
   initSidebar();
   initBackdrop();
-  // An image behind the editor (layout node background) switches the editor to see-through.
-  bus.on("layout-backdrop", () => applySettings());
+  applySettings(); // in case the first render's report came before the theme existed
 
   // Live reload: config.toml / style.css changes (from Slate or any other editor) apply at
   // once; plugin changes need a window reload, like herdr's startup-only settings.

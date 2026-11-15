@@ -64,13 +64,15 @@ export async function runSelfTest() {
     const changes = getActiveGroup().diff?.getLineChanges()?.length ?? 0;
     return changes > 0 || `changes ${changes}`;
   });
+  // Relative counts: the folder may restore a saved layout with several panes.
+  const panesBefore = allGroups().length;
   await check("split editor", async () => {
     await executeCommand("workbench.action.splitEditor");
-    return allGroups().length === 2 || `groups ${allGroups().length}`;
+    return allGroups().length === panesBefore + 1 || `groups ${allGroups().length} (was ${panesBefore})`;
   });
   await check("close group via close editor", async () => {
     await executeCommand("workbench.action.closeActiveEditor");
-    return allGroups().length === 1 || `groups ${allGroups().length}`;
+    return allGroups().length === panesBefore || `groups ${allGroups().length} (was ${panesBefore})`;
   });
   await check("stage + unstage", async () => {
     await executeCommand("workbench.view.scm");

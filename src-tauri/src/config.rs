@@ -69,6 +69,7 @@ const ENUMS: &[(&str, &[&str])] = &[
     ("ui.background.area", &["window", "editor"]),
     ("ui.pane_style", &["flush", "framed"]),
     ("ui.titlebar", &["native", "hidden"]),
+    ("terminal.cursor_style", &["block", "underline", "bar"]),
     ("files.auto_save", &["off", "after_delay"]),
     ("editor.word_wrap", &["off", "on", "wordWrapColumn", "bounded"]),
     ("editor.line_numbers", &["on", "off", "relative", "interval"]),
@@ -311,7 +312,12 @@ pub fn parse_config() -> Parsed {
 // ---- themes and layouts --------------------------------------------------------------------
 
 /// Tables a theme file may contain; every value in them must be a color string.
-const THEME_TABLES: &[&str] = &["colors", "syntax", "editor", "ui"];
+const THEME_TABLES: &[&str] = &["colors", "syntax", "editor", "ui", "terminal"];
+const THEME_TERMINAL: &[&str] = &[
+    "background", "foreground", "cursor", "selection", "black", "red", "green", "yellow", "blue",
+    "magenta", "cyan", "white", "bright_black", "bright_red", "bright_green", "bright_yellow",
+    "bright_blue", "bright_magenta", "bright_cyan", "bright_white",
+];
 const THEME_COLORS: &[&str] = &[
     "background", "foreground", "panel", "dim", "border", "accent", "accent_foreground", "selection",
     "hover", "selected", "red", "green", "yellow", "blue", "magenta", "cyan", "orange",
@@ -342,6 +348,7 @@ fn validate_theme(name: &str, t: &Table, diags: &mut Vec<String>) -> Table {
                 let known: Option<&[&str]> = match table {
                     "colors" => Some(THEME_COLORS),
                     "syntax" => Some(THEME_SYNTAX),
+                    "terminal" => Some(THEME_TERMINAL),
                     _ => None, // editor: Monaco color ids, ui: CSS variables
                 };
                 let mut clean = Table::new();
@@ -359,7 +366,7 @@ fn validate_theme(name: &str, t: &Table, diags: &mut Vec<String>) -> Table {
                 }
                 out.insert(table.to_string(), Value::Table(clean));
             }
-            _ => diags.push(format!("{label}: unknown key {key}; ignoring (expected name, appearance, glow, [colors], [syntax], [editor], [ui])")),
+            _ => diags.push(format!("{label}: unknown key {key}; ignoring (expected name, appearance, glow, [colors], [syntax], [editor], [ui], [terminal])")),
         }
     }
     out

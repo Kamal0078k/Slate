@@ -96,7 +96,8 @@ line_numbers = "on"
 render_whitespace = "selection"
 # "blink", "smooth", "phase", "expand", "solid"
 cursor_blinking = "blink"
-smooth_scrolling = true
+# Animates wheel/trackpad scrolling (~125 ms); off follows the trackpad directly, like VS Code.
+smooth_scrolling = false
 format_on_save = false
 rulers = []
 
@@ -109,6 +110,22 @@ auto_save = "off"
 auto_save_delay = 1000
 trim_trailing_whitespace = false
 insert_final_newline = false
+
+[terminal]
+# Program to run; "" = your login shell ($SHELL, started with -l so PATH matches a normal
+# terminal). Example: shell = "/opt/homebrew/bin/fish"
+shell = ""
+args = []
+# "" / 0 = same as [editor]
+font_family = ""
+font_size = 0
+line_height = 1.0
+# "block", "underline" or "bar"
+cursor_style = "block"
+cursor_blink = true
+scrollback = 10000
+# Use Option as Meta (Alt) on macOS, for shell shortcuts like Option+B / Option+F.
+mac_option_is_meta = true
 
 [search]
 # Globs always excluded from search, on top of .gitignore.
@@ -158,6 +175,11 @@ copy_path = "mod+alt+c"
 copy_relative_path = "mod+alt+shift+c"
 # Relative path with line, e.g. app/models/user.rb:42 or :10-20 for a selection.
 copy_reference = "mod+alt+l"
+# Terminals live in panes (make panes with split_right / split_down). In the pane you're in,
+# ⌃` opens a terminal, or switches between the pane's terminal and its file;
+# ⌃⇧` adds another terminal tab to the pane.
+toggle_terminal = "ctrl+`"
+new_terminal = "ctrl+shift+`"
 background_random = "mod+alt+/"
 background_next = "mod+alt+."
 background_previous = "mod+alt+,"

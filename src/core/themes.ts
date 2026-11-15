@@ -12,6 +12,8 @@
 //              tag, attribute, constant, regexp, delimiter, heading
 //   [editor]   any Monaco color id, e.g. "editor.lineHighlightBackground" = "#..."
 //   [ui]       any CSS variable, e.g. "--tab-border-top" = "#..."
+//   [terminal] background, foreground, cursor, selection and the 16 ANSI colors:
+//              black, red, green, yellow, blue, magenta, cyan, white, bright_black, ...
 //
 // Only `background`, `foreground` and `accent` are needed; everything else is derived.
 import { monaco } from "./monaco";
@@ -24,6 +26,7 @@ export interface ThemeFile {
   syntax?: Record<string, string>;
   editor?: Record<string, string>;
   ui?: Record<string, string>;
+  terminal?: Record<string, string>;
 }
 
 export interface ResolvedTheme {
@@ -32,7 +35,43 @@ export interface ResolvedTheme {
   glow: boolean;
   monacoTheme: string;
   vars: Record<string, string>;
+  /** Terminal palette: background, foreground, cursor, selection + 16 ANSI colors. */
+  terminal: Record<string, string>;
 }
+
+let current: ResolvedTheme | null = null;
+/** The theme last applied (terminals read their colors from it). */
+export const currentTheme = () => current;
+
+/** ANSI colors from the theme's [colors] when its [terminal] table leaves them out. */
+function terminalPalette(c: Colors, light: boolean, own: Colors = {}): Colors {
+  const mix = (a: string, pct: number, b: string) => `color-mix(in srgb, ${a} ${pct}%, ${b})`;
+  const base: Colors = {
+    background: c.background,
+    foreground: c.foreground,
+    cursor: c.cursor ?? c.accent,
+    selection: c.selection,
+    black: light ? mix(c.foreground, 80, "#000000") : mix(c.foreground, 15, c.background),
+    red: c.red, green: c.green, yellow: c.yellow, blue: c.blue, magenta: c.magenta, cyan: c.cyan,
+    white: light ? mix(c.foreground, 30, c.background) : c.foreground,
+    bright_black: c.dim,
+    bright_red: c.orange ?? c.red, bright_green: c.green, bright_yellow: c.yellow, bright_blue: c.blue,
+    bright_magenta: c.magenta, bright_cyan: c.cyan,
+    bright_white: light ? c.foreground : mix(c.foreground, 70, "#ffffff"),
+  };
+  const out: Colors = {};
+  for (const [k, v] of Object.entries({ ...base, ...own })) if (v) out[k] = toHex(v);
+  return out;
+}
+
+/** VS Code's own dark terminal colors, for the built-in "default" theme. */
+const DEFAULT_TERMINAL: Colors = {
+  background: "#1e1e1e", foreground: "#cccccc", cursor: "#aeafad", selection: "#264f78",
+  black: "#000000", red: "#cd3131", green: "#0dbc79", yellow: "#e5e510", blue: "#2472c8",
+  magenta: "#bc3fbc", cyan: "#11a8cd", white: "#e5e5e5", bright_black: "#666666",
+  bright_red: "#f14c4c", bright_green: "#23d18b", bright_yellow: "#f5f543", bright_blue: "#3b8eea",
+  bright_magenta: "#d670d6", bright_cyan: "#29b8db", bright_white: "#e5e5e5",
+};
 
 export const DEFAULT_THEME = "default";
 
@@ -264,11 +303,19 @@ export function resolveTheme(name: string, custom: Record<string, string>, trans
     if (transparent) Object.assign(data.colors, TRANSPARENT, solidOverlays(toHex(colors.background), toHex(colors.border)));
     const id = `slate-theme-${++seq}`; // fresh id so edits to the file always apply
     monaco.editor.defineTheme(id, data);
-    return { name, light, glow: !!file.glow, monacoTheme: id, vars: { ...uiVars(colors, light), ...file.ui, ...rawVars } };
+    current = {
+      name, light, glow: !!file.glow, monacoTheme: id,
+      vars: { ...uiVars(colors, light), ...file.ui, ...rawVars },
+      terminal: terminalPalette(colors, light, file.terminal ?? {}),
+    };
+    return current;
   }
 
   const plugin = pluginThemes.get(name);
-  if (plugin) return { name, light: plugin.light, glow: false, monacoTheme: name, vars: rawVars };
+  if (plugin) {
+    current = { name, light: plugin.light, glow: false, monacoTheme: name, vars: rawVars, terminal: { ...DEFAULT_TERMINAL } };
+    return current;
+  }
 
   // "default": VS Code's dark look; colors come from the stylesheet.
   const vars: Record<string, string> = { ...rawVars };
@@ -285,5 +332,6 @@ export function resolveTheme(name: string, custom: Record<string, string>, trans
     monacoId = "slate-default-transparent";
     monaco.editor.defineTheme(monacoId, { base: "vs-dark", inherit: true, rules: [], colors: { ...TRANSPARENT, ...solidOverlays("#1e1e1e", "#2b2b2b") } });
   }
-  return { name: DEFAULT_THEME, light: false, glow: false, monacoTheme: monacoId, vars };
+  current = { name: DEFAULT_THEME, light: false, glow: false, monacoTheme: monacoId, vars, terminal: { ...DEFAULT_TERMINAL } };
+  return current;
 }

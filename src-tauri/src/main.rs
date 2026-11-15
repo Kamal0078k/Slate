@@ -5,6 +5,7 @@ mod config;
 mod fsops;
 mod git;
 mod layout;
+mod pty;
 mod search;
 mod watcher;
 
@@ -12,6 +13,52 @@ use tauri::menu::{Menu, PredefinedMenuItem, Submenu};
 
 pub fn err<E: std::fmt::Display>(e: E) -> String {
     e.to_string()
+}
+
+/// WebKit caps page animation at 60 fps by default (Safari's "prefer page rendering updates
+/// near 60fps"), so the editor, which scrolls by redrawing every frame, ran at half the rate of
+/// a 120 Hz ProMotion screen while native scrolling (file tree) and VS Code ran at 120 Hz.
+/// The setting is read when the view is created, so it goes on a configuration handed to Tauri
+/// up front. Skipped silently when this WebKit doesn't have it.
+#[cfg(target_os = "macos")]
+fn high_refresh_configuration() -> Option<objc2::rc::Retained<objc2_web_kit::WKWebViewConfiguration>> {
+    use objc2::runtime::{AnyClass, AnyObject};
+    use objc2::{msg_send, sel, MainThreadMarker};
+    use std::ffi::CStr;
+    let mtm = MainThreadMarker::new()?;
+    let config = unsafe { objc2_web_kit::WKWebViewConfiguration::new(mtm) };
+    unsafe {
+        let prefs = config.preferences();
+        let prefs_obj: &AnyObject = &prefs;
+        // WebKit's feature flags (what Safari's Develop > Feature Flags menu shows).
+        let cls = AnyClass::get(c"WKPreferences")?;
+        let has_list: bool = msg_send![cls, respondsToSelector: sel!(_features)];
+        let has_setter: bool = msg_send![prefs_obj, respondsToSelector: sel!(_setEnabled:forFeature:)];
+        if !has_list || !has_setter {
+            eprintln!("slate: this WebKit has no feature flags; staying at 60 fps");
+            return None;
+        }
+        let features: *mut AnyObject = msg_send![cls, _features];
+        if features.is_null() {
+            return None;
+        }
+        let count: usize = msg_send![features, count];
+        for i in 0..count {
+            let feature: *mut AnyObject = msg_send![features, objectAtIndex: i];
+            let key: *mut AnyObject = msg_send![feature, key];
+            if key.is_null() {
+                continue;
+            }
+            let utf8: *const std::ffi::c_char = msg_send![key, UTF8String];
+            if !utf8.is_null() && CStr::from_ptr(utf8).to_bytes() == b"PreferPageRenderingUpdatesNear60FPSEnabled" {
+                let _: () = msg_send![prefs_obj, _setEnabled: false, forFeature: feature];
+                eprintln!("slate: disabled WebKit's near-60-fps rendering preference (measure with Developer: Measure Scroll FPS)");
+                return Some(config);
+            }
+        }
+        eprintln!("slate: no 60 fps feature flag in this WebKit; staying at 60 fps");
+        None
+    }
 }
 
 fn main() {
@@ -24,6 +71,7 @@ fn main() {
         .manage(search::FileIndex::default())
         .manage(watcher::WatcherState::default())
         .manage(config::ConfigWatcher::default())
+        .manage(pty::Terminals::default())
         // A minimal native menu. There is deliberately no "Close Window" item so
         // Cmd+W reaches the editor (close tab) instead of closing the window.
         .menu(|app| {
@@ -88,6 +136,10 @@ fn main() {
                     .hidden_title(true)
                     .traffic_light_position(tauri::LogicalPosition::new(traffic.0, traffic.1));
             }
+            #[cfg(target_os = "macos")]
+            if let Some(config) = high_refresh_configuration() {
+                builder = builder.with_webview_configuration(config);
+            }
             builder.build()?;
             Ok(())
         })
@@ -118,6 +170,10 @@ fn main() {
             git::git_unstage,
             git::git_discard,
             git::git_commit,
+            pty::term_spawn,
+            pty::term_write,
+            pty::term_resize,
+            pty::term_kill,
             config::load_config,
             config::window_info,
             config::load_widget,
@@ -127,6 +183,13 @@ fn main() {
             config::watch_config,
             watcher::watch_workspace,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running Slate");
+        .build(tauri::generate_context!())
+        .expect("error while building Slate")
+        .run(|app, event| {
+            // Quitting kills every terminal's shell, so nothing keeps running in the background.
+            if let tauri::RunEvent::Exit = event {
+                use tauri::Manager;
+                app.state::<pty::Terminals>().kill_all();
+            }
+        });
 }

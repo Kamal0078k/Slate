@@ -22,6 +22,11 @@ Open a folder from the app (⌘O) or pass it on the command line:
 - Source Control: staged/unstaged changes, side-by-side diff (editable working tree), stage/unstage/discard, commit (⌘↩)
 - Git gutter markers (added / modified / deleted lines)
 - Split editors ⌘\ (right/down, drag tabs between groups, resizable), preview tabs, ⌘1/2/3 to focus groups
+- Integrated terminal (xterm.js + a real PTY), tmux/herdr style: make panes with ⌘\ / ⇧⌘\,
+  then ⌃` in a pane turns it into a terminal (or switches the pane between its terminal and its
+  file); ⌃⇧` adds another terminal tab to the pane. ⌘W closes a terminal (and stops what runs
+  in it), ⌘K clears. `path:line` in output opens the file there.
+  ⌘ shortcuts go to Slate, everything else (Ctrl+C, Ctrl+R, Esc, Option…) to the shell.
 - Watches the folder: files changed by terminal tools reload automatically when not edited
 - Session restore per folder; auto save; trim whitespace / final newline on save
 

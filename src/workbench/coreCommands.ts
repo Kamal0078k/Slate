@@ -30,6 +30,9 @@ import {
   setActiveGroup,
   splitGroup,
   swapDocument,
+  newTerminal,
+  openTerminal,
+  toggleTerminal,
 } from "./groups";
 import { openFolder, recentFolders } from "./workspace";
 
@@ -393,6 +396,23 @@ export function registerCoreCommands() {
     return copy(`${relative(state.root, d.path)}:${lines}`);
   });
 
+  // Terminals (tabs in editor groups; src/workbench/terminal.ts).
+  r("terminal.toggle", "Terminal: Toggle Terminal", () => toggleTerminal());
+  r("terminal.new", "Terminal: Create New Terminal", () => newTerminal());
+  r("terminal.newHere", "Terminal: New Terminal in Active Editor Group", () => openTerminal(group()));
+  r("terminal.openInFolder", "Terminal: Open in Folder of Active File", () => {
+    const d = doc();
+    return openTerminal(group(), d && !d.untitled ? dirname(d.path) : state.root);
+  });
+  r("terminal.clear", "Terminal: Clear", () => {
+    const t = group().active;
+    if (t?.kind === "terminal") t.session.term.clear();
+  });
+  r("terminal.kill", "Terminal: Kill the Active Terminal", () => {
+    const t = group().active;
+    if (t?.kind === "terminal") return group().closeTab(t, true);
+  });
+
   // Configuration (config.toml), modeled on herdr.
   r("workbench.action.openConfig", "Config: Open config.toml", openConfigFile);
   r("workbench.action.reloadConfig", "Config: Reload", () => executeCommand("slate.reloadConfig"));
@@ -427,6 +447,118 @@ export function registerCoreCommands() {
       placeholder: loadedPlugins.length ? "Loaded plugins" : "No plugins loaded",
       items: loadedPlugins.map((p) => ({ label: `${p.name} ${p.version}`, description: p.error ? `failed: ${p.error}` : "active" })),
     });
+  });
+  // Scrolls the active editor for 2 seconds and reports how often the window updates
+  // (requestAnimationFrame cadence): ~60 on a capped WebKit, ~120 on a ProMotion screen when
+  // uncapped. Moves by elapsed time (same speed at any refresh rate) and turns around at the
+  // end of the file so every frame really moves the view.
+  r("developer.measureScrollFps", "Developer: Measure Scroll FPS", async () => {
+    const ed = activeCodeEditor();
+    if (!ed) return notify("Open a file first, then run this.", "warning");
+    const start = ed.getScrollTop();
+    const maxTop = Math.max(0, ed.getScrollHeight() - ed.getLayoutInfo().height);
+    if (maxTop < 200) return notify("Open a longer file (a few hundred lines) for a useful measurement.", "warning");
+    const speed = 1800; // px per second
+    const gaps: number[] = [];
+    let last = performance.now();
+    const t0 = last;
+    let top = Math.min(start, maxTop);
+    let dir = 1;
+    await new Promise<void>((done) => {
+      setTimeout(done, 4000); // safety: frames stop arriving if the window is in the background
+      const step = (t: number) => {
+        const dt = t - last;
+        gaps.push(dt);
+        last = t;
+        top += dir * speed * (dt / 1000);
+        if (top >= maxTop) { top = maxTop; dir = -1; }
+        if (top <= 0) { top = 0; dir = 1; }
+        ed.setScrollTop(top);
+        if (t - t0 < 2000) requestAnimationFrame(step);
+        else done();
+      };
+      requestAnimationFrame(step);
+    });
+    ed.setScrollTop(start);
+    const sorted = gaps.slice(2).sort((a, b) => a - b);
+    if (sorted.length < 10) return notify("The window got almost no frames (is it in the background?). Click into Slate and run it again.", "warning");
+    const median = sorted[Math.floor(sorted.length / 2)] ?? 0;
+    const slow = sorted.filter((g) => g > 1.5 * median).length;
+    const focused = document.hasFocus() ? "" : " (window wasn't focused, so this may be throttled)";
+    notify(`Window updates at ≈ ${Math.round(1000 / median)} fps (median frame ${median.toFixed(1)} ms, ${slow} late frames of ${sorted.length})${focused}.`, "info", 12000);
+  });
+
+  // Records 10 seconds of REAL wheel events on the active editor (synthetic events take a
+  // different path in WebKit), then opens a report: event values, distance per event, event
+  // rhythm, frame cadence meanwhile, and how Monaco is likely classifying the input.
+  r("developer.recordMouseWheel", "Developer: Record Mouse Wheel (10 s)", async () => {
+    const ed = activeCodeEditor();
+    if (!ed) return notify("Open a long file first, then run this.", "warning");
+    const node = ed.getDomNode()!;
+    type Rec = { t: number; deltaY: number; deltaMode: number; wheelDeltaY: number | null; moved: number; trusted: boolean };
+    const recs: Rec[] = [];
+    const frames: number[] = [];
+    let pendingFrom: number | null = null;
+    let current: Rec | null = null;
+    const onWheel = (e: WheelEvent) => {
+      const legacy = (e as unknown as { wheelDeltaY?: number }).wheelDeltaY;
+      current = { t: performance.now(), deltaY: e.deltaY, deltaMode: e.deltaMode, wheelDeltaY: legacy ?? null, moved: 0, trusted: e.isTrusted };
+      recs.push(current);
+      pendingFrom = ed.getScrollTop();
+      // Monaco handles the event after us; read the resulting position right after.
+      queueMicrotask(() => {
+        if (current && pendingFrom != null) current.moved = Math.round(ed.getScrollTop() - pendingFrom);
+      });
+    };
+    node.addEventListener("wheel", onWheel, { capture: true, passive: true });
+    notify("Recording for 10 seconds: scroll this file with your MOUSE WHEEL now (single clicks, then fast spins).", "info", 10000);
+    // A timer ends the recording (animation frames stop when the window is in the background);
+    // frames are only sampled to report the update rate.
+    let last = performance.now();
+    let recording = true;
+    const step = (t: number) => {
+      frames.push(t - last);
+      last = t;
+      if (recording) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+    await new Promise((r) => setTimeout(r, 10000));
+    recording = false;
+    node.removeEventListener("wheel", onWheel, { capture: true } as EventListenerOptions);
+    if (!recs.length) return notify("No wheel events were recorded. Run it again and scroll over the editor.", "warning");
+
+    const med = (xs: number[]) => { const s2 = [...xs].sort((a, b) => a - b); return s2[Math.floor(s2.length / 2)] ?? 0; };
+    const pct = (xs: number[], p: number) => { const s2 = [...xs].sort((a, b) => a - b); return s2[Math.min(s2.length - 1, Math.floor(s2.length * p))] ?? 0; };
+    const legacy = recs.map((r) => r.wheelDeltaY).filter((v): v is number => v != null);
+    const normalized = legacy.map((v) => v / 120); // what Monaco uses per event
+    const fractional = normalized.filter((v) => Math.abs(v - Math.round(v)) > 1e-6).length;
+    const gaps = recs.slice(1).map((r, i) => r.t - recs[i].t);
+    const isolatedGaps = gaps.filter((g) => g > 120).length;
+    const movedAbs = recs.map((r) => Math.abs(r.moved));
+    const frameMed = med(frames.slice(2)) || 1000;
+    const values = [...new Set(legacy.map((v) => Math.abs(v)))].sort((a, b) => a - b);
+    const lines = [
+      `# Slate mouse-wheel recording (${new Date().toLocaleString()})`,
+      ``,
+      `Events: ${recs.length} (${recs.filter((r) => r.trusted).length} real)  |  deltaMode: ${[...new Set(recs.map((r) => r.deltaMode))].join(", ")} (0 = pixels, 1 = lines)`,
+      `Window update rate while recording: ≈ ${Math.round(1000 / frameMed)} fps (median frame ${frameMed.toFixed(1)} ms)  |  focused: ${document.hasFocus()}`,
+      ``,
+      `## What each event says`,
+      `wheelDeltaY (Monaco divides by 120): median ${med(legacy.map(Math.abs))}, distinct values: ${values.slice(0, 20).join(", ")}${values.length > 20 ? " …" : ""}`,
+      `deltaY: median ${med(recs.map((r) => Math.abs(r.deltaY))).toFixed(2)}, max ${pct(recs.map((r) => Math.abs(r.deltaY)), 1).toFixed(2)}`,
+      `Fractional normalized values: ${fractional} of ${normalized.length} (many fractions push Monaco to classify input as a TRACKPAD; whole numbers as a MOUSE WHEEL)`,
+      ``,
+      `## What the editor did`,
+      `Pixels moved per event: median ${med(movedAbs)}, p90 ${pct(movedAbs, 0.9)}, max ${pct(movedAbs, 1)}  (current mouse_wheel_scroll_sensitivity: ${ed.getOption(monaco.editor.EditorOption.mouseWheelScrollSensitivity)})`,
+      `Smooth scrolling: ${ed.getOption(monaco.editor.EditorOption.smoothScrolling)}`,
+      ``,
+      `## Event rhythm`,
+      `Time between events: median ${med(gaps).toFixed(1)} ms, p90 ${pct(gaps, 0.9).toFixed(1)} ms  |  separate clicks (gap > 120 ms): ${isolatedGaps}`,
+      ``,
+      `## Raw events (time ms, deltaY, wheelDeltaY, px moved)`,
+      ...recs.slice(0, 200).map((r) => `${(r.t - recs[0].t).toFixed(1)}\t${r.deltaY.toFixed(2)}\t${r.wheelDeltaY ?? "-"}\t${r.moved}`),
+    ];
+    group().openDoc(newUntitled(lines.join("\n"), "markdown"), { focus: true });
   });
   r("workbench.action.reloadWindow", "Developer: Reload Window", async () => {
     const dirty = dirtyDocs().length;
