@@ -236,6 +236,14 @@ export const colorValue = (c?: string) => (!c ? "" : COLOR_NAMES[c] ? `var(${COL
 
 const imageUrls = new Map<string, Promise<string | null>>();
 
+/** Forgets decoded background images, so a replaced image file is read again on the next render. */
+export function clearImageCache() {
+  const old = [...imageUrls.values()];
+  imageUrls.clear();
+  // Revoke after the re-render has swapped in the new images.
+  setTimeout(() => old.forEach((p) => void p.then((url) => url && URL.revokeObjectURL(url))), 5000);
+}
+
 /**
  * Background images, decoded once. SVGs are drawn into a bitmap first: WebKit can otherwise
  * re-render the vector (and any picture embedded in it) when content above it repaints,

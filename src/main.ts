@@ -12,7 +12,7 @@ import { state } from "./core/state";
 import { bus, debounce } from "./core/util";
 import { loadPlugins } from "./plugins/host";
 import { confirmDialog, notify } from "./ui/notify";
-import { initSidebar, registerView, setLayout } from "./ui/sidebar";
+import { clearImageCache, initSidebar, registerView, setLayout } from "./ui/sidebar";
 import { reloadWidgets } from "./ui/widgets";
 import { initStatusBar } from "./ui/statusbar";
 import { initBackdrop } from "./ui/backdrop";
@@ -121,7 +121,11 @@ async function boot() {
     notify(configStatus.diagnostics.length ? "Config reloaded with problems." : "Config reloaded.");
   }, true);
   const onConfigChanged = debounce(() => void reloadConfig(), 150);
-  await listen("config-changed", onConfigChanged);
+  await listen<string[] | null>("config-changed", (e) => {
+    // A replaced background image keeps its path, so drop the decoded copies.
+    if (e.payload?.some((p) => /[\\/]backgrounds[\\/]/.test(p))) clearImageCache();
+    onConfigChanged();
+  });
   await api.watchConfig().catch((e) => console.warn("config watching unavailable", e));
 
   // Auto save.

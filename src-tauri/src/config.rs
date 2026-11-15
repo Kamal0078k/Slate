@@ -662,7 +662,8 @@ pub fn config_set(key: Vec<String>, value: serde_json::Value) -> Result<(), Stri
 #[derive(Default)]
 pub struct ConfigWatcher(Mutex<Option<RecommendedWatcher>>);
 
-/// Emits "config-changed" when config.toml, style.css or plugins change on disk.
+/// Emits "config-changed" (with the changed paths) when config.toml, style.css, plugins,
+/// themes, layouts, widgets or background images change on disk.
 #[tauri::command]
 pub fn watch_config(app: AppHandle, state: State<'_, ConfigWatcher>) -> Result<(), String> {
     let dir = config_dir();
@@ -673,10 +674,11 @@ pub fn watch_config(app: AppHandle, state: State<'_, ConfigWatcher>) -> Result<(
                 let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
                 name == "config.toml"
                     || name == "style.css"
-                    || p.components().any(|c| ["plugins", "themes", "layouts", "widgets"].contains(&c.as_os_str().to_str().unwrap_or("")))
+                    || p.components().any(|c| ["plugins", "themes", "layouts", "widgets", "backgrounds"].contains(&c.as_os_str().to_str().unwrap_or("")))
             });
             if relevant && !matches!(event.kind, notify::EventKind::Access(_)) {
-                let _ = app.emit("config-changed", ());
+                let paths: Vec<String> = event.paths.iter().map(|p| p.to_string_lossy().into_owned()).collect();
+                let _ = app.emit("config-changed", paths);
             }
         }
     })
