@@ -11,7 +11,7 @@ import { dirtyDocs, getActiveGroup, restoreSession } from "./groups";
 
 export function recentFolders(): string[] {
   try {
-    return JSON.parse(localStorage.getItem("slate.recentFolders") ?? "[]");
+    return JSON.parse(localStorage.getItem("sumi.recentFolders") ?? "[]");
   } catch {
     return [];
   }
@@ -24,7 +24,7 @@ export async function openFolder(path: string) {
   if (dirty && !(await confirmDialog(`You have ${dirty} unsaved file${dirty === 1 ? "" : "s"}. Open another folder and discard them?`))) return;
   state.root = root;
   try {
-    localStorage.setItem("slate.recentFolders", JSON.stringify([root, ...recentFolders().filter((p) => p !== root)].slice(0, 15)));
+    localStorage.setItem("sumi.recentFolders", JSON.stringify([root, ...recentFolders().filter((p) => p !== root)].slice(0, 15)));
   } catch {
     /* ignore */
   }
@@ -38,7 +38,7 @@ export async function openFolder(path: string) {
 
 export const updateTitle = debounce(() => {
   const doc = getActiveGroup()?.activeDoc();
-  const parts = [doc ? `${isDirty(doc) ? "● " : ""}${docName(doc)}` : null, state.root ? basename(state.root) : null, "Slate"];
+  const parts = [doc ? `${isDirty(doc) ? "● " : ""}${docName(doc)}` : null, state.root ? basename(state.root) : null, "Sumi"];
   void getCurrentWindow().setTitle(parts.filter(Boolean).join(" — "));
 }, 50);
 

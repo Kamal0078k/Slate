@@ -1,13 +1,13 @@
 //! Configuration, modeled on herdr:
 //!
-//! * one TOML file, `~/.config/slate/config.toml` ($XDG_CONFIG_HOME, %APPDATA% on Windows);
-//!   Slate works without it, and `slate --default-config` prints every default
+//! * one TOML file, `~/.config/sumi/config.toml` ($XDG_CONFIG_HOME, %APPDATA% on Windows);
+//!   Sumi works without it, and `sumi --default-config` prints every default
 //! * the bundled default config doubles as the schema: unknown keys and wrongly typed values
 //!   are ignored with a diagnostic ("unknown config key ...; did you mean ...?") and fall back
 //!   to the default, they never stop the app
-//! * `slate config check` validates from the command line
-//! * state (plugin data) lives apart from config, in $XDG_STATE_HOME/slate
-//! * plugins are folders with a `slate-plugin.toml` manifest (or single .js files)
+//! * `sumi config check` validates from the command line
+//! * state (plugin data) lives apart from config, in $XDG_STATE_HOME/sumi
+//! * plugins are folders with a `sumi-plugin.toml` manifest (or single .js files)
 
 use crate::err;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
@@ -24,28 +24,46 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 // ---- locations ---------------------------------------------------------------------------
 
 pub fn config_dir() -> PathBuf {
-    if let Ok(dir) = std::env::var("SLATE_CONFIG_DIR") {
-        return PathBuf::from(dir);
+    // SLATE_CONFIG_DIR and ~/.config/slate: Sumi's former name, still read so old setups keep working.
+    for var in ["SUMI_CONFIG_DIR", "SLATE_CONFIG_DIR"] {
+        if let Ok(dir) = std::env::var(var) {
+            return PathBuf::from(dir);
+        }
     }
+    with_legacy(config_base())
+}
+
+fn config_base() -> PathBuf {
     if let Ok(dir) = std::env::var("XDG_CONFIG_HOME") {
-        return PathBuf::from(dir).join("slate");
+        return PathBuf::from(dir);
     }
     #[cfg(windows)]
     if let Ok(dir) = std::env::var("APPDATA") {
-        return PathBuf::from(dir).join("slate");
+        return PathBuf::from(dir);
     }
-    home().join(".config").join("slate")
+    home().join(".config")
 }
 
 pub fn state_dir() -> PathBuf {
     if let Ok(dir) = std::env::var("XDG_STATE_HOME") {
-        return PathBuf::from(dir).join("slate");
+        return with_legacy(PathBuf::from(dir));
     }
     #[cfg(windows)]
     if let Ok(dir) = std::env::var("LOCALAPPDATA") {
-        return PathBuf::from(dir).join("slate");
+        return with_legacy(PathBuf::from(dir));
     }
-    home().join(".local").join("state").join("slate")
+    with_legacy(home().join(".local").join("state"))
+}
+
+/// `<base>/sumi`, or `<base>/slate` (the former name) when only that one exists.
+fn with_legacy(base: PathBuf) -> PathBuf {
+    let current = base.join("sumi");
+    let legacy = base.join("slate");
+    if !current.exists() && legacy.is_dir() {
+        legacy
+    } else {
+        current
+    }
 }
 
 fn home() -> PathBuf {
@@ -70,7 +88,7 @@ const ENUMS: &[(&str, &[&str])] = &[
     ("ui.pane_style", &["flush", "framed"]),
     ("ui.titlebar", &["native", "hidden"]),
     ("ui.mouse_wheel", &["chromium", "system"]),
-    ("ui.editor_wheel", &["slate", "monaco"]),
+    ("ui.editor_wheel", &["sumi", "monaco", "slate"]), // "slate": former name of "sumi"
     ("terminal.cursor_style", &["block", "underline", "bar"]),
     ("files.auto_save", &["off", "after_delay"]),
     ("editor.word_wrap", &["off", "on", "wordWrapColumn", "bounded"]),
@@ -435,7 +453,8 @@ struct Manifest {
     name: Option<String>,
     version: Option<String>,
     description: Option<String>,
-    min_slate_version: Option<String>,
+    #[serde(alias = "min_slate_version")]
+    min_sumi_version: Option<String>,
     main: Option<String>,
 }
 
@@ -466,7 +485,8 @@ fn load_plugins(disabled: &[String], diags: &mut Vec<String>) -> Vec<PluginInfo>
             continue;
         }
         let (manifest, main) = if path.is_dir() {
-            let manifest_path = path.join("slate-plugin.toml");
+            // slate-plugin.toml: the manifest's name before the rename, still accepted.
+            let manifest_path = ["sumi-plugin.toml", "slate-plugin.toml"].iter().map(|n| path.join(n)).find(|p| p.is_file()).unwrap_or_else(|| path.join("sumi-plugin.toml"));
             let Ok(text) = fs::read_to_string(&manifest_path) else { continue };
             match toml::from_str::<Manifest>(&text) {
                 Ok(m) => {
@@ -474,13 +494,13 @@ fn load_plugins(disabled: &[String], diags: &mut Vec<String>) -> Vec<PluginInfo>
                     (m, main)
                 }
                 Err(e) => {
-                    diags.push(format!("plugin {file_name}: invalid slate-plugin.toml: {}", e.message()));
+                    diags.push(format!("plugin {file_name}: invalid sumi-plugin.toml: {}", e.message()));
                     continue;
                 }
             }
         } else if matches!(path.extension().and_then(|e| e.to_str()), Some("js" | "mjs")) {
             let id = path.file_stem().unwrap_or_default().to_string_lossy().into_owned();
-            let m = Manifest { id, name: None, version: None, description: None, min_slate_version: None, main: None };
+            let m = Manifest { id, name: None, version: None, description: None, min_sumi_version: None, main: None };
             (m, path.clone())
         } else {
             continue;
@@ -488,9 +508,9 @@ fn load_plugins(disabled: &[String], diags: &mut Vec<String>) -> Vec<PluginInfo>
         if disabled.contains(&manifest.id) {
             continue;
         }
-        if let Some(min) = &manifest.min_slate_version {
+        if let Some(min) = &manifest.min_sumi_version {
             if version_tuple(min) > version_tuple(VERSION) {
-                diags.push(format!("plugin {} needs Slate {min} or newer (this is {VERSION}); not loaded", manifest.id));
+                diags.push(format!("plugin {} needs Sumi {min} or newer (this is {VERSION}); not loaded", manifest.id));
                 continue;
             }
         }
@@ -529,7 +549,7 @@ pub struct LoadedConfig {
     plugins: Vec<PluginInfo>,
     themes: serde_json::Map<String, serde_json::Value>,
     layouts: Vec<String>,
-    /// The active layout's node tree (null = Slate builds one from [ui]).
+    /// The active layout's node tree (null = Sumi builds one from [ui]).
     tree: Option<serde_json::Value>,
     widgets: Vec<String>,
 }
@@ -690,7 +710,7 @@ pub fn watch_config(app: AppHandle, state: State<'_, ConfigWatcher>) -> Result<(
 
 // ---- CLI ---------------------------------------------------------------------------------
 
-/// Handles `slate --default-config`, `slate config check|path`, `--version`, `--help`.
+/// Handles `sumi --default-config`, `sumi config check|path`, `--version`, `--help`.
 /// Returns Some(exit code) when the app should not start.
 pub fn run_cli() -> Option<i32> {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -729,16 +749,16 @@ pub fn run_cli() -> Option<i32> {
             Some(0)
         }
         (Some("config"), _) => {
-            eprintln!("usage: slate config check | slate config path");
+            eprintln!("usage: sumi config check | sumi config path");
             Some(2)
         }
         (Some("--version" | "-V"), _) => {
-            println!("slate {VERSION}");
+            println!("sumi {VERSION}");
             Some(0)
         }
         (Some("--help" | "-h"), _) => {
             println!(
-                "slate {VERSION}\n\nUsage:\n  slate [FOLDER]           open a folder\n  slate --default-config   print the default config.toml\n  slate config check       validate config.toml and print diagnostics\n  slate config path        print the config file location\n\nConfig: {}\nState:  {}",
+                "sumi {VERSION}\n\nUsage:\n  sumi [FOLDER]           open a folder\n  sumi --default-config   print the default config.toml\n  sumi config check       validate config.toml and print diagnostics\n  sumi config path        print the config file location\n\nConfig: {}\nState:  {}",
                 config_path().display(),
                 state_dir().display()
             );
@@ -764,7 +784,7 @@ mod tests {
     /// defaults < config.toml < layout < [layouts.<name>]: a layout is a named config.
     #[test]
     fn layout_overrides_config_and_layouts_table_overrides_layout() {
-        let dir = std::env::temp_dir().join(format!("slate-config-test-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("sumi-config-test-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(dir.join("layouts")).unwrap();
         fs::write(
@@ -789,9 +809,9 @@ font_size = 50
                  "children": [ { "type": "block", "content": { "editor": true } } ] }"#,
         )
         .unwrap();
-        std::env::set_var("SLATE_CONFIG_DIR", &dir);
+        std::env::set_var("SUMI_CONFIG_DIR", &dir);
         let p = parse_config();
-        std::env::remove_var("SLATE_CONFIG_DIR");
+        std::env::remove_var("SUMI_CONFIG_DIR");
         let _ = fs::remove_dir_all(&dir);
 
         assert!(p.diagnostics.is_empty(), "{:?}", p.diagnostics);

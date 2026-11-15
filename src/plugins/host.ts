@@ -1,5 +1,5 @@
-// Plugin host. Each plugin is an ES module in ~/.config/slate/plugins that exports
-// `activate(slate)` (and optionally `deactivate()`). The `slate` object below is the whole
+// Plugin host. Each plugin is an ES module in ~/.config/sumi/plugins that exports
+// `activate(sumi)` (and optionally `deactivate()`). The `sumi` object below is the whole
 // plugin API. Plugins run in the window with full access, so only install code you trust.
 import { api, PluginInfo } from "../core/api";
 import { allCommands, executeCommand, registerCommand } from "../core/commands";
@@ -17,15 +17,15 @@ import { registerView, showView, View } from "../ui/sidebar";
 import { registerWidget } from "../ui/widgets";
 import { createStatusBarItem, StatusBarItemOptions } from "../ui/statusbar";
 
-export const SLATE_VERSION = "0.1.0";
+export const SUMI_VERSION = "0.1.0";
 
-export function createSlateApi(info: PluginInfo, subscriptions: Disposable[]) {
+export function createSumiApi(info: PluginInfo, subscriptions: Disposable[]) {
   const pluginName = info.id;
   const track = <T extends Disposable>(d: T) => (subscriptions.push(d), d);
   const on = (event: string) => (cb: (...a: any[]) => void) => track(bus.on(event, cb));
 
   return {
-    version: SLATE_VERSION,
+    version: SUMI_VERSION,
     /** This plugin: id, folder, a private data folder, and its [plugins.<id>] config table. */
     plugin: {
       id: info.id,
@@ -79,7 +79,7 @@ export function createSlateApi(info: PluginInfo, subscriptions: Disposable[]) {
       /** Adds a sidebar view with its own activity bar icon. `render` gets a plain DOM element. */
       registerView: (view: View) => track(registerView(view)),
       /** A widget layouts can place: { "widget": name, "props": {...} }. */
-      registerWidget: (name: string, mount: (el: HTMLElement, slate: unknown) => unknown) => track(registerWidget(name, mount)),
+      registerWidget: (name: string, mount: (el: HTMLElement, sumi: unknown) => unknown) => track(registerWidget(name, mount)),
       showView: (id: string) => showView(id),
       /** Defines a Monaco theme and makes it selectable via "workbench.colorTheme". */
       defineTheme: (name: string, data: monaco.editor.IStandaloneThemeData) => {
@@ -104,7 +104,7 @@ export function createSlateApi(info: PluginInfo, subscriptions: Disposable[]) {
   };
 }
 
-export type SlateApi = ReturnType<typeof createSlateApi>;
+export type SumiApi = ReturnType<typeof createSumiApi>;
 
 export interface LoadedPlugin {
   name: string;
@@ -121,12 +121,12 @@ export async function loadPlugins(plugins: PluginInfo[]) {
     const { id: name, source } = info;
     const entry: LoadedPlugin = { name, version: info.version, subscriptions: [] };
     loadedPlugins.push(entry);
-    const url = URL.createObjectURL(new Blob([`${source}\n//# sourceURL=slate-plugin://${name}`], { type: "text/javascript" }));
+    const url = URL.createObjectURL(new Blob([`${source}\n//# sourceURL=sumi-plugin://${name}`], { type: "text/javascript" }));
     try {
       const mod = await import(/* @vite-ignore */ url);
       const activate = mod.activate ?? mod.default;
-      if (typeof activate !== "function") throw new Error("plugin does not export activate(slate)");
-      await activate(createSlateApi(info, entry.subscriptions));
+      if (typeof activate !== "function") throw new Error("plugin does not export activate(sumi)");
+      await activate(createSumiApi(info, entry.subscriptions));
       entry.deactivate = mod.deactivate;
     } catch (e) {
       entry.error = e instanceof Error ? e.message : String(e);
@@ -138,4 +138,4 @@ export async function loadPlugins(plugins: PluginInfo[]) {
   }
 }
 
-(window as any).slatePlugins = loadedPlugins;
+(window as any).sumiPlugins = loadedPlugins;

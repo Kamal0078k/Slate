@@ -1,6 +1,6 @@
 //! Integrated terminals: each one is your shell in a pseudo-terminal (portable-pty, the same
 //! library herdr uses). Output streams to the window over a channel; keystrokes come back via
-//! `term_write`. Every shell is killed when Slate quits.
+//! `term_write`. Every shell is killed when Sumi quits.
 
 use crate::err;
 use portable_pty::{native_pty_system, ChildKiller, CommandBuilder, MasterPty, PtySize};
@@ -114,7 +114,7 @@ pub fn term_spawn(state: State<'_, Terminals>, options: SpawnOptions, on_event: 
     cmd.cwd(cwd);
     cmd.env("TERM", "xterm-256color");
     cmd.env("COLORTERM", "truecolor");
-    cmd.env("TERM_PROGRAM", "Slate");
+    cmd.env("TERM_PROGRAM", "Sumi");
     if std::env::var("LANG").is_err() {
         cmd.env("LANG", "en_US.UTF-8");
     }

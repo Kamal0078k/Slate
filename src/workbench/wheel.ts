@@ -8,7 +8,7 @@
 // It's applied immediately (not on the next frame): Monaco already draws once per frame, and
 // deferring added a whole frame of delay (measured 7 ms -> 15 ms from event to redraw). The speed formula is Monaco's/VS Code's
 // own: wheelDeltaY / 120 * 50 px * mouseWheelScrollSensitivity (x fastScrollSensitivity with ⌥).
-// Configured by [ui] editor_wheel = "slate" (default) | "monaco".
+// Configured by [ui] editor_wheel = "sumi" (default) | "monaco".
 import { monaco } from "../core/monaco";
 import { settings } from "../core/settings";
 
@@ -71,7 +71,7 @@ function flush(ed: Editor, p: Pending) {
 }
 
 function onWheel(e: WheelEvent) {
-  if (settings.get("ui.editor_wheel", "slate") !== "slate" || e.ctrlKey) return; // ctrl+wheel = zoom gestures
+  if (!["sumi", "slate"].includes(settings.get("ui.editor_wheel", "sumi")) || e.ctrlKey) return; // ctrl+wheel = zoom gestures
   const ed = editorFor(e.target as Node | null);
   if (!ed || !ed.getModel()) return;
   // Same normalization as Monaco's StandardWheelEvent (legacy wheelDelta when present).

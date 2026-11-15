@@ -12,7 +12,7 @@
 // {gradient, angle} or {image, fit}), border {width, color}, radius, padding, window_drag.
 // The editor block can frame its panes: "panes": {gap, radius, border, focus, header:{height}}.
 //
-// A layout comes from layouts/<name>.json. Without one, Slate builds a plain tree from the
+// A layout comes from layouts/<name>.json. Without one, Sumi builds a plain tree from the
 // [ui] settings (sidebar_position, sidebar_sections, activity_bar, pane_style, ...).
 // Sizes, hidden nodes and stack choices people change are remembered per layout.
 import { invoke } from "@tauri-apps/api/core";
@@ -189,7 +189,7 @@ function ensureEditor(root: LayoutNode): LayoutNode {
   return root.type === "block" ? { id: "root", type: "row", children: [root, editor] } : { ...root, children: [...(root.children ?? []), editor] };
 }
 
-const stateKey = () => `slate.layout.v2:${layoutName || "default"}`;
+const stateKey = () => `sumi.layout.v2:${layoutName || "default"}`;
 
 function loadState() {
   try {

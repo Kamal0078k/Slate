@@ -65,12 +65,12 @@ window.addEventListener("mousedown", (e) => {
 window.addEventListener("blur", closeContextMenu);
 window.addEventListener("keydown", (e) => e.key === "Escape" && closeContextMenu());
 
-export const confirmDialog = (text: string, title = "Slate") => ask(text, { title, kind: "warning" });
+export const confirmDialog = (text: string, title = "Sumi") => ask(text, { title, kind: "warning" });
 
 /** Save / Don't Save / Cancel prompt for unsaved files. */
 export async function askSave(name: string): Promise<"save" | "discard" | "cancel"> {
   const r = await message(`Do you want to save the changes you made to ${name}?\n\nYour changes will be lost if you don't save them.`, {
-    title: "Slate",
+    title: "Sumi",
     kind: "warning",
     buttons: { yes: "Save", no: "Don't Save", cancel: "Cancel" },
   });

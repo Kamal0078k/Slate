@@ -3519,34 +3519,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 
 [[package]]
-name = "slate"
-version = "0.1.0"
-dependencies = [
- "block2",
- "git2",
- "grep-matcher",
- "grep-regex",
- "grep-searcher",
- "ignore",
- "libc",
- "notify",
- "nucleo-matcher",
- "objc2",
- "objc2-web-kit",
- "portable-pty",
- "regex",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-clipboard-manager",
- "tauri-plugin-dialog",
- "toml 0.8.2",
- "toml_edit 0.22.27",
- "trash",
-]
-
-[[package]]
 name = "smallvec"
 version = "1.16.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3675,6 +3647,34 @@ name = "strsim"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
+
+[[package]]
+name = "sumi"
+version = "0.1.0"
+dependencies = [
+ "block2",
+ "git2",
+ "grep-matcher",
+ "grep-regex",
+ "grep-searcher",
+ "ignore",
+ "libc",
+ "notify",
+ "nucleo-matcher",
+ "objc2",
+ "objc2-web-kit",
+ "portable-pty",
+ "regex",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-clipboard-manager",
+ "tauri-plugin-dialog",
+ "toml 0.8.2",
+ "toml_edit 0.22.27",
+ "trash",
+]
 
 [[package]]
 name = "swift-rs"

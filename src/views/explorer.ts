@@ -32,7 +32,7 @@ export async function setExplorerRoot() {
   if (state.root) {
     expanded.add(state.root);
     try {
-      const saved = JSON.parse(localStorage.getItem("slate.expanded") ?? "{}")[state.root] ?? [];
+      const saved = JSON.parse(localStorage.getItem("sumi.expanded") ?? "{}")[state.root] ?? [];
       for (const d of saved) expanded.add(d);
     } catch {
       /* ignore */
@@ -52,9 +52,9 @@ export async function refreshExplorer(dirs?: string[]) {
 function persistExpanded() {
   if (!state.root) return;
   try {
-    const all = JSON.parse(localStorage.getItem("slate.expanded") ?? "{}");
+    const all = JSON.parse(localStorage.getItem("sumi.expanded") ?? "{}");
     all[state.root] = [...expanded].filter((d) => d !== state.root);
-    localStorage.setItem("slate.expanded", JSON.stringify(all));
+    localStorage.setItem("sumi.expanded", JSON.stringify(all));
   } catch {
     /* ignore */
   }

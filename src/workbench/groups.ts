@@ -479,7 +479,7 @@ export class EditorGroup {
       h(
         "div.wm-inner",
         null,
-        h("div.wm-logo", null, "Slate"),
+        h("div.wm-logo", null, "Sumi"),
         row("Show All Commands", "workbench.action.showCommands"),
         row("Go to File", "workbench.action.quickOpen"),
         row("Find in Files", "workbench.action.findInFiles"),
@@ -811,7 +811,7 @@ interface SavedNode {
   active?: number;
 }
 
-const SESSION_KEY = "slate.layout";
+const SESSION_KEY = "sumi.layout";
 
 export const scheduleSessionSave = debounce(saveSession, 400);
 

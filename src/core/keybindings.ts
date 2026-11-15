@@ -127,7 +127,7 @@ export function setConfigKeybindings(keys: KeysConfig) {
   for (const b of keys?.bind ?? []) list.push({ key: b.key, command: b.command, args: b.args });
   for (const c of keys?.command ?? []) {
     const type = c.type ?? "shell";
-    if (type === "shell") list.push({ key: c.key, command: "slate.runShellCommand", args: c.command });
+    if (type === "shell") list.push({ key: c.key, command: "sumi.runShellCommand", args: c.command });
     else list.push({ key: c.key, command: c.command });
   }
   configBindings = list;
@@ -174,7 +174,7 @@ export function installKeybindings() {
       if (!key) return;
       const binding = table.get(key);
       if (!binding) return;
-      // In a terminal the shell gets the keys (Ctrl+C, Ctrl+R, Esc, Option+…), except Slate's
+      // In a terminal the shell gets the keys (Ctrl+C, Ctrl+R, Esc, Option+…), except Sumi's
       // ⌘ shortcuts (Ctrl+Shift on Windows/Linux) and the terminal toggles themselves.
       const inTerminal = !!(e.target as HTMLElement | null)?.closest?.(".terminal-host");
       if (inTerminal && !(isMac ? e.metaKey : e.ctrlKey && e.shiftKey) && !TERMINAL_KEYS.has(binding.command)) return;

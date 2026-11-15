@@ -41,7 +41,7 @@ pub fn open_workspace(path: String) -> Result<String, String> {
     Ok(p.to_string_lossy().into_owned())
 }
 
-/// A folder passed on the command line, e.g. `slate ~/code/project`.
+/// A folder passed on the command line, e.g. `sumi ~/code/project`.
 #[tauri::command]
 pub fn initial_folder() -> Option<String> {
     std::env::args()
@@ -164,7 +164,7 @@ pub fn frontend_log(level: String, message: String) {
 
 #[tauri::command]
 pub fn dev_selftest() -> bool {
-    cfg!(debug_assertions) && std::env::var("SLATE_SELFTEST").is_ok()
+    cfg!(debug_assertions) && std::env::var("SUMI_SELFTEST").is_ok()
 }
 
 fn expand_home(path: &str) -> std::path::PathBuf {
@@ -214,7 +214,7 @@ pub async fn read_image(path: String) -> Result<tauri::ipc::Response, String> {
     Ok(tauri::ipc::Response::new(bytes))
 }
 
-/// Font files in ~/.config/slate/fonts and widgets/*/fonts (like herdr's home and mod fonts/).
+/// Font files in ~/.config/sumi/fonts and widgets/*/fonts (like herdr's home and mod fonts/).
 #[tauri::command]
 pub fn list_fonts() -> Vec<String> {
     let base = crate::config::config_dir();

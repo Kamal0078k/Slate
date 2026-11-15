@@ -1,15 +1,15 @@
-// Widgets: JS modules in ~/.config/slate/widgets/<name>/main.js that a layout places in a
-// block, like the herdr app's mods. A widget exports `mount(el, slate)` (or a default
-// function) and may return a cleanup function. `slate` is the plugin API plus:
-//   slate.widget = { name, props, dir }   this copy's block props and folder
-//   slate.theme()                          current colors by name (background, accent, ...)
+// Widgets: JS modules in ~/.config/sumi/widgets/<name>/main.js that a layout places in a
+// block, like the herdr app's mods. A widget exports `mount(el, sumi)` (or a default
+// function) and may return a cleanup function. `sumi` is the plugin API plus:
+//   sumi.widget = { name, props, dir }   this copy's block props and folder
+//   sumi.theme()                          current colors by name (background, accent, ...)
 // Saving a widget's main.js remounts every copy in place. Plugins can also register
-// widgets in code with slate.ui.registerWidget(name, mount).
+// widgets in code with sumi.ui.registerWidget(name, mount).
 import { invoke } from "@tauri-apps/api/core";
-import { createSlateApi } from "../plugins/host";
+import { createSumiApi } from "../plugins/host";
 import { h, type Disposable } from "../core/util";
 
-export type WidgetMount = (el: HTMLElement, slate: any) => unknown;
+export type WidgetMount = (el: HTMLElement, sumi: any) => unknown;
 
 interface Instance {
   el: HTMLElement;
@@ -55,7 +55,7 @@ async function load(inst: Instance, props: unknown, blockId: string) {
       const w = await invoke<{ source: string; dir: string }>("load_widget", { name: inst.name });
       inst.source = w.source;
       dir = w.dir;
-      const url = URL.createObjectURL(new Blob([`${w.source}\n//# sourceURL=slate-widget://${inst.name}`], { type: "text/javascript" }));
+      const url = URL.createObjectURL(new Blob([`${w.source}\n//# sourceURL=sumi-widget://${inst.name}`], { type: "text/javascript" }));
       try {
         const mod = await import(/* @vite-ignore */ url);
         mount = mod.mount ?? mod.default;
@@ -69,10 +69,10 @@ async function load(inst: Instance, props: unknown, blockId: string) {
     }
   }
   if (typeof mount !== "function") {
-    inst.el.append(h("div.widget-error", null, `widget ${inst.name}: main.js must export mount(el, slate)`));
+    inst.el.append(h("div.widget-error", null, `widget ${inst.name}: main.js must export mount(el, sumi)`));
     return;
   }
-  const api = createSlateApi(
+  const api = createSumiApi(
     { id: `widget:${inst.name}`, name: inst.name, version: "", description: "", dir, dataDir: "", source: "" },
     inst.subscriptions,
   ) as any;

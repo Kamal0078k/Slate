@@ -1,3 +1,4 @@
+import "./core/migrate"; // first: carries saved state over from the former name (Slate)
 import "./styles.css";
 import { loadFonts } from "./core/fonts";
 import { installEditorWheel } from "./workbench/wheel";
@@ -74,7 +75,7 @@ if (import.meta.env.DEV) {
   }
   window.addEventListener("error", (e) => send("uncaught", [e.error ?? e.message]));
   // Test hook for dev self-tests only.
-  void import("./workbench/groups").then((g) => ((window as any).__slateDebug = { groups: g }));
+  void import("./workbench/groups").then((g) => ((window as any).__sumiDebug = { groups: g }));
   window.addEventListener("unhandledrejection", (e) => !e.defaultPrevented && send("unhandled-rejection", [e.reason]));
 }
 
@@ -114,9 +115,9 @@ async function boot() {
   initBackdrop();
   applySettings(); // in case the first render's report came before the theme existed
 
-  // Live reload: config.toml / style.css changes (from Slate or any other editor) apply at
+  // Live reload: config.toml / style.css changes (from Sumi or any other editor) apply at
   // once; plugin changes need a window reload, like herdr's startup-only settings.
-  registerCommand("slate.reloadConfig", "Reload Config", async () => {
+  registerCommand("sumi.reloadConfig", "Reload Config", async () => {
     await reloadConfig();
     notify(configStatus.diagnostics.length ? "Config reloaded with problems." : "Config reloaded.");
   }, true);
@@ -162,7 +163,7 @@ async function boot() {
     console.log(
       `ready: root=${state.root} git=${state.git ? `${state.git.branch}/${state.git.files.length} changes` : "none"} ` +
         `groups=${allGroups().length} explorerRows=${document.querySelectorAll(".tree .row").length} ` +
-        `activity=${document.querySelectorAll(".activity").length} plugins=${(window as any).slatePlugins?.map((p: any) => p.name + (p.error ? "!" : "")).join(",")}`,
+        `activity=${document.querySelectorAll(".activity").length} plugins=${(window as any).sumiPlugins?.map((p: any) => p.name + (p.error ? "!" : "")).join(",")}`,
     );
     if (await invoke<boolean>("dev_selftest")) await (await import("./selftest")).runSelfTest();
   }

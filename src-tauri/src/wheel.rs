@@ -110,7 +110,7 @@ pub fn install_chromium_wheel() {
             // The monitor (and its block) must live as long as the app.
             let _: *mut AnyObject = msg_send![monitor, retain];
             std::mem::forget(handler);
-            eprintln!("slate: mouse wheel clicks scroll in whole steps, like Chromium");
+            eprintln!("sumi: mouse wheel clicks scroll in whole steps, like Chromium");
         }
     }
 }

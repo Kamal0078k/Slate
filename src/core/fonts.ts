@@ -1,5 +1,5 @@
-// Fonts. Like the herdr app, Slate ships JetBrains Mono, Geist and Geist Mono (all OFL), so
-// layouts and settings can use them on any machine. Fonts in ~/.config/slate/fonts/ (and a
+// Fonts. Like the herdr app, Sumi ships JetBrains Mono, Geist and Geist Mono (all OFL), so
+// layouts and settings can use them on any machine. Fonts in ~/.config/sumi/fonts/ (and a
 // widget's own fonts/ folder) load too; the file name is the family name:
 // "Pixel Operator.ttf", or "Pixel Operator-Bold.ttf" for extra weights.
 import { invoke } from "@tauri-apps/api/core";

@@ -282,11 +282,11 @@ fn run_search(o: SearchOptions, emit: &(dyn Fn(Vec<FileMatches>) + Sync)) -> Res
 mod bench {
     use super::*;
 
-    /// SLATE_BENCH_ROOT=~/code cargo test --release bench_search -- --nocapture
+    /// SUMI_BENCH_ROOT=~/code cargo test --release bench_search -- --nocapture
     #[test]
     fn bench_search() {
-        let Ok(root) = std::env::var("SLATE_BENCH_ROOT") else { return };
-        for query in std::env::var("SLATE_BENCH_QUERIES").map(|q| q.split('|').map(String::from).collect::<Vec<_>>()).unwrap_or_else(|_| vec!["const".into(), "useState".into(), "fn main".into(), "zzzzqqq".into()]) {
+        let Ok(root) = std::env::var("SUMI_BENCH_ROOT") else { return };
+        for query in std::env::var("SUMI_BENCH_QUERIES").map(|q| q.split('|').map(String::from).collect::<Vec<_>>()).unwrap_or_else(|_| vec!["const".into(), "useState".into(), "fn main".into(), "zzzzqqq".into()]) {
             let query = query.as_str();
             let start = std::time::Instant::now();
             let collected = Mutex::new(Vec::new());
@@ -297,9 +297,9 @@ mod bench {
                 case_sensitive: false,
                 whole_word: false,
                 include: String::new(),
-                exclude: std::env::var("SLATE_BENCH_EXCLUDE").unwrap_or_else(|_| "node_modules, dist, target, .next, *.lock".into()),
+                exclude: std::env::var("SUMI_BENCH_EXCLUDE").unwrap_or_else(|_| "node_modules, dist, target, .next, *.lock".into()),
                 max_results: 20000,
-                max_file_size_kb: std::env::var("SLATE_BENCH_MAX_KB").ok().and_then(|v| v.parse().ok()).unwrap_or(0),
+                max_file_size_kb: std::env::var("SUMI_BENCH_MAX_KB").ok().and_then(|v| v.parse().ok()).unwrap_or(0),
             }, &|batch| collected.lock().unwrap().extend(batch))
             .unwrap();
             r.files = collected.into_inner().unwrap();
@@ -319,7 +319,7 @@ mod columns {
 
     #[test]
     fn columns_and_previews_are_exact_with_multibyte_text() {
-        let dir = std::env::temp_dir().join(format!("slate-col-test-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("sumi-col-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         // "é" is 1 UTF-16 unit, "😀" is 2. Matches at UTF-16 columns 8 and 18 (1-based).
         std::fs::write(dir.join("a.txt"), "aé😀 x class y😀 class z\n").unwrap();

@@ -1,5 +1,5 @@
 //! Layout files, modeled on the herdr app's `layouts/<name>.json`: a tree of nodes
-//! (row / column / stack / block) describing the whole window. Blocks show Slate's own
+//! (row / column / stack / block) describing the whole window. Blocks show Sumi's own
 //! pieces (explorer, search, scm, editor, statusbar, activitybar) or a widget from
 //! `widgets/<name>/main.js`. The root also carries the look (theme, colors, fonts, title bar),
 //! which is turned into ordinary config values here so the rest of the app sees one config.

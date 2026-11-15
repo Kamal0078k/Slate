@@ -56,7 +56,7 @@ function camelize(v: unknown): unknown {
   return v;
 }
 
-// [editor] keys that are Slate's own rather than Monaco options.
+// [editor] keys that are Sumi's own rather than Monaco options.
 const NON_MONACO = new Set(["format_on_save"]);
 
 /** Monaco options from the [editor] table (snake_case -> camelCase), plus session overrides. */

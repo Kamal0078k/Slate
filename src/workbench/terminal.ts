@@ -18,8 +18,8 @@ type TermEvent = { kind: "data"; data: string } | { kind: "exit"; code: number |
 let seq = 0;
 const sessions = new Set<TerminalSession>();
 
-/** Keys that stay with Slate while a terminal has focus (everything else goes to the shell). */
-export const isSlateKeyInTerminal = (e: KeyboardEvent) => (isMac ? e.metaKey : e.ctrlKey && e.shiftKey);
+/** Keys that stay with Sumi while a terminal has focus (everything else goes to the shell). */
+export const isSumiKeyInTerminal = (e: KeyboardEvent) => (isMac ? e.metaKey : e.ctrlKey && e.shiftKey);
 
 export class TerminalSession {
   readonly id = ++seq;
@@ -50,13 +50,13 @@ export class TerminalSession {
     this.term.onResize(({ cols, rows }) => {
       if (this.ptyId != null) void invoke("term_resize", { id: this.ptyId, cols, rows }).catch(() => undefined);
     });
-    // ⌘K clears like iTerm/VS Code; other Slate shortcuts are left to the global handler.
+    // ⌘K clears like iTerm/VS Code; other Sumi shortcuts are left to the global handler.
     this.term.attachCustomKeyEventHandler((e) => {
       if (e.type === "keydown" && e.key.toLowerCase() === "k" && (isMac ? e.metaKey : e.ctrlKey && e.shiftKey) && !e.altKey) {
         this.term.clear();
         return false;
       }
-      return !isSlateKeyInTerminal(e);
+      return !isSumiKeyInTerminal(e);
     });
     this.resizeObserver = new ResizeObserver(() => this.layout());
     this.resizeObserver.observe(this.el);

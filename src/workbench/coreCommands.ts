@@ -40,7 +40,7 @@ import { openFolder, recentFolders } from "./workspace";
 
 const recentFiles = (): string[] => {
   try {
-    return JSON.parse(localStorage.getItem(`slate.recentFiles:${state.root}`) ?? "[]");
+    return JSON.parse(localStorage.getItem(`sumi.recentFiles:${state.root}`) ?? "[]");
   } catch {
     return [];
   }
@@ -51,7 +51,7 @@ bus.on("active-editor", () => {
   if (!doc || doc.untitled || !state.root) return;
   const list = [doc.path, ...recentFiles().filter((p) => p !== doc.path)].slice(0, 50);
   try {
-    localStorage.setItem(`slate.recentFiles:${state.root}`, JSON.stringify(list));
+    localStorage.setItem(`sumi.recentFiles:${state.root}`, JSON.stringify(list));
   } catch {
     /* ignore */
   }
@@ -59,7 +59,7 @@ bus.on("active-editor", () => {
 
 const recentCommands: string[] = (() => {
   try {
-    return JSON.parse(localStorage.getItem("slate.recentCommands") ?? "[]");
+    return JSON.parse(localStorage.getItem("sumi.recentCommands") ?? "[]");
   } catch {
     return [];
   }
@@ -145,7 +145,7 @@ export async function showQuickOpen(prefix = "") {
   if (item.kind === "command") {
     recentCommands.splice(0, recentCommands.length, item.id, ...recentCommands.filter((c) => c !== item.id).slice(0, 20));
     try {
-      localStorage.setItem("slate.recentCommands", JSON.stringify(recentCommands));
+      localStorage.setItem("sumi.recentCommands", JSON.stringify(recentCommands));
     } catch {
       /* ignore */
     }
@@ -193,7 +193,7 @@ async function showDefaultConfig() {
   getActiveGroup().openDoc(newUntitled(text, "ini"), { focus: true });
 }
 
-const THEME_TEMPLATE = (name: string) => `# Slate theme. Only background, foreground and accent are required; anything left out
+const THEME_TEMPLATE = (name: string) => `# Sumi theme. Only background, foreground and accent are required; anything left out
 # is derived from them. Select it with "Config: Color Theme" or [theme] name = "${name}".
 name = "${name}"
 appearance = "dark"        # "dark" or "light"
@@ -245,7 +245,7 @@ accent = "#0078d4"
 # "editor.lineHighlightBackground" = "#2a2d2e"
 
 [ui]
-# Any Slate CSS variable, e.g.
+# Any Sumi CSS variable, e.g.
 # "--tab-border-top" = "#0078d4"
 `;
 
@@ -415,7 +415,7 @@ export function registerCoreCommands() {
 
   // Configuration (config.toml), modeled on herdr.
   r("workbench.action.openConfig", "Config: Open config.toml", openConfigFile);
-  r("workbench.action.reloadConfig", "Config: Reload", () => executeCommand("slate.reloadConfig"));
+  r("workbench.action.reloadConfig", "Config: Reload", () => executeCommand("sumi.reloadConfig"));
   r("workbench.action.checkConfig", "Config: Check (show problems)", async () => {
     const items = configStatus.diagnostics.length
       ? configStatus.diagnostics.map((d) => ({ label: d }))
@@ -434,11 +434,11 @@ export function registerCoreCommands() {
     if (!name) return;
     const id = name.replace(/\.js$/, "");
     const dir = join(join(state.configDir, "plugins"), id);
-    await api.writeFile(join(dir, "slate-plugin.toml"), `id = "${id}"\nname = "${id}"\nversion = "0.1.0"\nmin_slate_version = "0.1.0"\nmain = "index.js"\ndescription = ""\n`);
+    await api.writeFile(join(dir, "sumi-plugin.toml"), `id = "${id}"\nname = "${id}"\nversion = "0.1.0"\nmin_sumi_version = "0.1.0"\nmain = "index.js"\ndescription = ""\n`);
     const main = join(dir, "index.js");
     await api.writeFile(
       main,
-      `// Reload the window (F5) after editing. Settings for this plugin go in [plugins.${id}] in config.toml.\nexport function activate(slate) {\n  slate.commands.register("${id}.hello", "${id}: Say Hello", () => {\n    slate.ui.notify(\`Hello from ${id}! config: \${JSON.stringify(slate.plugin.config())}\`);\n  });\n}\n`,
+      `// Reload the window (F5) after editing. Settings for this plugin go in [plugins.${id}] in config.toml.\nexport function activate(sumi) {\n  sumi.commands.register("${id}.hello", "${id}: Say Hello", () => {\n    sumi.ui.notify(\`Hello from ${id}! config: \${JSON.stringify(sumi.plugin.config())}\`);\n  });\n}\n`,
     );
     await openFile(main);
   });
@@ -481,7 +481,7 @@ export function registerCoreCommands() {
     });
     ed.setScrollTop(start);
     const sorted = gaps.slice(2).sort((a, b) => a - b);
-    if (sorted.length < 10) return notify("The window got almost no frames (is it in the background?). Click into Slate and run it again.", "warning");
+    if (sorted.length < 10) return notify("The window got almost no frames (is it in the background?). Click into Sumi and run it again.", "warning");
     const median = sorted[Math.floor(sorted.length / 2)] ?? 0;
     const slow = sorted.filter((g) => g > 1.5 * median).length;
     const focused = document.hasFocus() ? "" : " (window wasn't focused, so this may be throttled)";
@@ -542,7 +542,7 @@ export function registerCoreCommands() {
     const frameMed = med(frames.slice(2)) || 1000;
     const values = [...new Set(legacy.map((v) => Math.abs(v)))].sort((a, b) => a - b);
     const lines = [
-      `# Slate mouse-wheel recording (${new Date().toLocaleString()})`,
+      `# Sumi mouse-wheel recording (${new Date().toLocaleString()})`,
       ``,
       `Events: ${recs.length} (${recs.filter((r) => r.trusted).length} real)  |  deltaMode: ${[...new Set(recs.map((r) => r.deltaMode))].join(", ")} (0 = pixels, 1 = lines)`,
       `Window update rate while recording: ≈ ${Math.round(1000 / frameMed)} fps (median frame ${frameMed.toFixed(1)} ms)  |  focused: ${document.hasFocus()}`,
@@ -592,7 +592,7 @@ export function registerCoreCommands() {
       id,
     }));
     const pick = await showQuickPick({
-      placeholder: "Select Color Theme (Up/Down to preview). Theme files live in ~/.config/slate/themes",
+      placeholder: "Select Color Theme (Up/Down to preview). Theme files live in ~/.config/sumi/themes",
       items,
       onActive: (item) => item && settings.setSession("theme.name", item.id),
     });
@@ -608,12 +608,12 @@ export function registerCoreCommands() {
   });
   r("workbench.action.selectLayout", "Config: Layout", async () => {
     const current = settings.get<string>("layout", "");
-    const items = [{ label: "(none)", description: "Slate defaults", id: "" }, ...configStatus.layouts.map((id) => ({ label: id, description: id === current ? "current" : "", id }))];
-    const pick = await showQuickPick({ placeholder: "Select a layout (a named config) from ~/.config/slate/layouts", items });
+    const items = [{ label: "(none)", description: "Sumi defaults", id: "" }, ...configStatus.layouts.map((id) => ({ label: id, description: id === current ? "current" : "", id }))];
+    const pick = await showQuickPick({ placeholder: "Select a layout (a named config) from ~/.config/sumi/layouts", items });
     if (pick) await api.configSet(["layout"], pick.id);
   });
   r("workbench.action.createTheme", "Config: Create Theme...", async () => {
-    const name = await showInput({ prompt: "Theme name (file name in ~/.config/slate/themes)", validate: (v) => (/^[\w.-]+$/.test(v) ? null : "Use letters, digits, dot, dash or underscore.") });
+    const name = await showInput({ prompt: "Theme name (file name in ~/.config/sumi/themes)", validate: (v) => (/^[\w.-]+$/.test(v) ? null : "Use letters, digits, dot, dash or underscore.") });
     if (!name) return;
     const path = join(join(state.configDir, "themes"), `${name}.toml`);
     await api.writeFile(path, THEME_TEMPLATE(name));
@@ -628,18 +628,18 @@ export function registerCoreCommands() {
   });
 
   // [[keys.command]] type = "shell": run detached from the folder root with context env vars.
-  r("slate.runShellCommand", "Run Shell Command", async (command?: string) => {
+  r("sumi.runShellCommand", "Run Shell Command", async (command?: string) => {
     if (typeof command !== "string") return;
     const ed = activeCodeEditor();
     const pos = ed?.getPosition();
     const sel = ed?.getSelection();
     const d = doc();
     const env: Record<string, string> = {
-      SLATE_ROOT: state.root ?? "",
-      SLATE_FILE: d && !d.untitled ? d.path : "",
-      SLATE_LINE: String(pos?.lineNumber ?? ""),
-      SLATE_COLUMN: String(pos?.column ?? ""),
-      SLATE_SELECTION: sel && !sel.isEmpty() ? ed!.getModel()!.getValueInRange(sel) : "",
+      SUMI_ROOT: state.root ?? "",
+      SUMI_FILE: d && !d.untitled ? d.path : "",
+      SUMI_LINE: String(pos?.lineNumber ?? ""),
+      SUMI_COLUMN: String(pos?.column ?? ""),
+      SUMI_SELECTION: sel && !sel.isEmpty() ? ed!.getModel()!.getValueInRange(sel) : "",
     };
     const shell = navigator.userAgent.includes("Windows") ? ["cmd.exe", "/d", "/c", command] : ["/bin/sh", "-c", command];
     const r2 = await api.exec(shell, state.root ?? undefined, env);

@@ -37,7 +37,7 @@ fn high_refresh_configuration() -> Option<objc2::rc::Retained<objc2_web_kit::WKW
         let has_list: bool = msg_send![cls, respondsToSelector: sel!(_features)];
         let has_setter: bool = msg_send![prefs_obj, respondsToSelector: sel!(_setEnabled:forFeature:)];
         if !has_list || !has_setter {
-            eprintln!("slate: this WebKit has no feature flags; staying at 60 fps");
+            eprintln!("sumi: this WebKit has no feature flags; staying at 60 fps");
             return None;
         }
         let features: *mut AnyObject = msg_send![cls, _features];
@@ -54,11 +54,11 @@ fn high_refresh_configuration() -> Option<objc2::rc::Retained<objc2_web_kit::WKW
             let utf8: *const std::ffi::c_char = msg_send![key, UTF8String];
             if !utf8.is_null() && CStr::from_ptr(utf8).to_bytes() == b"PreferPageRenderingUpdatesNear60FPSEnabled" {
                 let _: () = msg_send![prefs_obj, _setEnabled: false, forFeature: feature];
-                eprintln!("slate: disabled WebKit's near-60-fps rendering preference (measure with Developer: Measure Scroll FPS)");
+                eprintln!("sumi: disabled WebKit's near-60-fps rendering preference (measure with Developer: Measure Scroll FPS)");
                 return Some(config);
             }
         }
-        eprintln!("slate: no 60 fps feature flag in this WebKit; staying at 60 fps");
+        eprintln!("sumi: no 60 fps feature flag in this WebKit; staying at 60 fps");
         None
     }
 }
@@ -82,7 +82,7 @@ fn main() {
                 &[
                     &Submenu::with_items(
                         app,
-                        "Slate",
+                        "Sumi",
                         true,
                         &[
                             &PredefinedMenuItem::about(app, None, None)?,
@@ -126,7 +126,7 @@ fn main() {
             let traffic = config::window_style().1.unwrap_or((14.0, 18.0));
             #[allow(unused_mut)]
             let mut builder = tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
-                .title("Slate")
+                .title("Sumi")
                 .inner_size(1400.0, 900.0)
                 .min_inner_size(600.0, 400.0)
                 .disable_drag_drop_handler();
@@ -190,7 +190,7 @@ fn main() {
             watcher::watch_workspace,
         ])
         .build(tauri::generate_context!())
-        .expect("error while building Slate")
+        .expect("error while building Sumi")
         .run(|app, event| {
             // Quitting kills every terminal's shell, so nothing keeps running in the background.
             if let tauri::RunEvent::Exit = event {

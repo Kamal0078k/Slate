@@ -315,10 +315,10 @@ pub async fn git_commit(root: String, message: String) -> Result<String, String>
 
 #[cfg(test)]
 mod bench {
-    /// SLATE_BENCH_ROOT=~/code cargo test bench_repos -- --nocapture
+    /// SUMI_BENCH_ROOT=~/code cargo test bench_repos -- --nocapture
     #[test]
     fn bench_repos() {
-        let Ok(root) = std::env::var("SLATE_BENCH_ROOT") else { return };
+        let Ok(root) = std::env::var("SUMI_BENCH_ROOT") else { return };
         let exclude: Vec<String> = ["node_modules", "dist", "target", ".next", "graphify-out", "coverage"].iter().map(|s| s.to_string()).collect();
         let start = std::time::Instant::now();
         let repos = tauri::async_runtime::block_on(super::git_repositories(root, exclude)).unwrap();

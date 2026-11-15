@@ -1,5 +1,5 @@
-// Theme engine. Slate ships no themes except "default" (VS Code's dark look, from the
-// stylesheet). Every other theme is a file in ~/.config/slate/themes/<name>.toml:
+// Theme engine. Sumi ships no themes except "default" (VS Code's dark look, from the
+// stylesheet). Every other theme is a file in ~/.config/sumi/themes/<name>.toml:
 //
 //   name = "Steins Amoled"        # display name (optional)
 //   appearance = "dark"           # "dark" | "light"
@@ -301,7 +301,7 @@ export function resolveTheme(name: string, custom: Record<string, string>, trans
     const colors = completeColors({ ...file.colors, ...customColors }, light);
     const data = monacoTheme(colors, file.syntax ?? {}, file.editor ?? {}, light);
     if (transparent) Object.assign(data.colors, TRANSPARENT, solidOverlays(toHex(colors.background), toHex(colors.border)));
-    const id = `slate-theme-${++seq}`; // fresh id so edits to the file always apply
+    const id = `sumi-theme-${++seq}`; // fresh id so edits to the file always apply
     monaco.editor.defineTheme(id, data);
     current = {
       name, light, glow: !!file.glow, monacoTheme: id,
@@ -329,7 +329,7 @@ export function resolveTheme(name: string, custom: Record<string, string>, trans
   set("sidebar_background", "--sidebar-bg");
   let monacoId = "vs-dark";
   if (transparent) {
-    monacoId = "slate-default-transparent";
+    monacoId = "sumi-default-transparent";
     monaco.editor.defineTheme(monacoId, { base: "vs-dark", inherit: true, rules: [], colors: { ...TRANSPARENT, ...solidOverlays("#1e1e1e", "#2b2b2b") } });
   }
   current = { name: DEFAULT_THEME, light: false, glow: false, monacoTheme: monacoId, vars, terminal: { ...DEFAULT_TERMINAL } };

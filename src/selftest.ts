@@ -1,4 +1,4 @@
-// Dev-only smoke test, run with SLATE_SELFTEST=1. Exercises the main features against the
+// Dev-only smoke test, run with SUMI_SELFTEST=1. Exercises the main features against the
 // open folder and logs PASS/FAIL lines to the terminal.
 import { api, FileMatches } from "./core/api";
 import { allCommands, executeCommand } from "./core/commands";
@@ -34,7 +34,7 @@ export async function runSelfTest() {
   await check("quick open finds src/main.rs", async () => (await api.findFiles(root, "mainrs")).includes("src/main.rs"));
   await check("open file", async () => {
     await openFile(main);
-    return getActiveGroup().activeDoc()?.model.getValue().includes("slate") ?? "no doc";
+    return getActiveGroup().activeDoc()?.model.getValue().includes("sumi") ?? "no doc";
   });
   await check("git gutter markers", async () => {
     await wait(600);

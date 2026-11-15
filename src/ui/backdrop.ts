@@ -28,7 +28,7 @@ let layer: HTMLElement;
 let overlay: HTMLElement;
 
 const cfg = () => settings.get<BackgroundConfig>("ui.background", {} as BackgroundConfig) ?? ({} as BackgroundConfig);
-const LAST_KEY = "slate.background.last";
+const LAST_KEY = "sumi.background.last";
 
 async function show(i: number) {
   if (!images.length) return clear();
