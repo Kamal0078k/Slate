@@ -502,6 +502,11 @@ input, textarea { user-select: text; -webkit-user-select: text; }
   color: var(--fg-dim);
 }
 .section-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* accordion sections (layout: "collapsible": true) */
+.collapsible-header { cursor: pointer; user-select: none; }
+.collapsible-header:hover .section-title { color: var(--fg); }
+.section-chevron { width: 10px; flex: none; font-size: 9px; color: var(--fg-dim); margin-left: -4px; }
+.node.collapsed > .section-header { border-bottom: none; }
 .section-title::before { content: var(--section-marker, ""); color: var(--accent); margin-right: 6px; }
 .section-actions { display: flex; gap: 1px; opacity: 0; transition: opacity 0.1s; }
 .sidebar-section:hover .section-actions, .sidebar-section:focus-within .section-actions,

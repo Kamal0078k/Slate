@@ -8,6 +8,7 @@
 //                    { "statusbar": true }    { "activitybar": true }
 //                    { "widget": "<name>", "props": {...} }   widgets/<name>/main.js
 //
+// Any node with a header can fold: "collapsible": true (+ "collapsed": true to start folded).
 // Any node: id, size {px|weight}, min, max, hidden, background (color name, #hex,
 // {gradient, angle} or {image, fit}), border {width, color}, radius, padding, window_drag.
 // The editor block can frame its panes: "panes": {gap, radius, border, focus, header:{height}}.
@@ -60,6 +61,10 @@ export interface LayoutNode {
   active?: string;
   header?: "title" | "tabs" | false;
   title?: string;
+  /** Clicking the header folds the node down to just its header (an accordion section). */
+  collapsible?: boolean;
+  /** Start folded (until someone opens it; the choice is remembered per layout). */
+  collapsed?: boolean;
   panes?: {
     gap?: number;
     radius?: number;
@@ -77,6 +82,7 @@ interface NodeState {
   weight?: number;
   hidden?: boolean;
   active?: string;
+  collapsed?: boolean;
 }
 
 const views: View[] = [];
@@ -312,6 +318,25 @@ function paint(el: HTMLElement, node: LayoutNode) {
 // ---- rendering ---------------------------------------------------------------------------------
 
 const isVisible = (n: LayoutNode) => !(st(n.id!).hidden ?? n.hidden);
+const isCollapsed = (n: LayoutNode) => !!n.collapsible && (st(n.id!).collapsed ?? n.collapsed ?? false);
+
+function toggleCollapsed(node: LayoutNode) {
+  st(node.id!).collapsed = !isCollapsed(node);
+  saveState();
+  render();
+}
+
+/** Makes a section header fold/unfold its node: a chevron, and a click anywhere but its buttons. */
+function makeCollapsible(header: HTMLElement, node: LayoutNode) {
+  header.classList.add("collapsible-header");
+  header.prepend(h("span.section-chevron", { "aria-hidden": "true" }, isCollapsed(node) ? "▸" : "▾"));
+  header.title = isCollapsed(node) ? "Expand" : "Collapse";
+  header.addEventListener("click", (e) => {
+    if ((e.target as HTMLElement).closest("button")) return; // header actions and stack tabs
+    toggleCollapsed(node);
+  });
+  return header;
+}
 
 function sizeStyle(el: HTMLElement, node: LayoutNode, dir: "row" | "column" | null) {
   const s = st(node.id!);
@@ -345,6 +370,15 @@ function build(node: LayoutNode, dir: "row" | "column" | null, inStackWithHeader
   const el = h("div", { className: `node node-${type}`, "data-node": node.id });
   sizeStyle(el, node, dir);
   paint(el, node);
+  const collapsed = isCollapsed(node);
+  if (node.collapsible) el.classList.add("collapsible");
+  if (collapsed) {
+    // Folded: only the header stays, and the open siblings take the space.
+    el.classList.add("collapsed");
+    el.style.flex = "0 0 auto";
+    el.style.minHeight = el.style.minWidth = "";
+  }
+  const fold = (header: HTMLElement) => (node.collapsible ? makeCollapsible(header, node) : header);
 
   if (type === "row" || type === "column") {
     const visible = (node.children ?? []).filter(isVisible);
@@ -359,7 +393,7 @@ function build(node: LayoutNode, dir: "row" | "column" | null, inStackWithHeader
     const active = pick(temporaryActive.get(node.id!)) ?? pick(s.active) ?? pick(node.active) ?? kids[0];
     const activeView = views.find((v) => v.id === active?.content?.view);
     if (node.header === "tabs") {
-      el.append(
+      el.append(fold(
         h(
           "header.section-header.stack-tabs",
           null,
@@ -369,19 +403,22 @@ function build(node: LayoutNode, dir: "row" | "column" | null, inStackWithHeader
           }),
           activeView ? h("span.section-actions", null, ...(activeView.actions ?? []).map((a) => h("button.icon-btn", { html: a.icon, title: a.title, onclick: () => a.run() }))) : null,
         ),
-      );
+      ));
     } else if (node.header === "title" && activeView) {
-      el.append(viewHeader(activeView));
+      el.append(fold(viewHeader(activeView)));
     }
-    if (active) el.append(build({ ...active, size: { weight: 1 } }, "column", node.header === "title" || node.header === "tabs"));
+    if (active && !collapsed) el.append(build({ ...active, size: { weight: 1 } }, "column", node.header === "title" || node.header === "tabs"));
   } else {
     const c = node.content ?? {};
     if (c.view) {
       const view = views.find((v) => v.id === c.view);
       if (view) {
-        shownViews.push(view.id);
-        if (!inStackWithHeader && node.header !== false && node.header !== undefined) el.append(viewHeader(view));
-        el.append(container(view.id));
+        const hasHeader = !inStackWithHeader && node.header !== false && node.header !== undefined;
+        if (hasHeader) el.append(fold(viewHeader(view)));
+        if (!(collapsed && hasHeader)) {
+          shownViews.push(view.id);
+          el.append(container(view.id));
+        }
       }
     } else if (c.editor) {
       el.classList.add("editor-block");
@@ -420,7 +457,7 @@ function separator(parent: LayoutNode, dir: "row" | "column", a: LayoutNode, b: 
   const sep = h("div", { className: `node-sep node-sep-${dir}` });
   sep.style.flex = `0 0 ${thickness}px`;
   if (parent.divider && !parent.gap) sep.style.background = colorValue(parent.divider.color ?? "border");
-  const resizable = parent.resizable !== false && a.resizable !== false && b.resizable !== false;
+  const resizable = parent.resizable !== false && a.resizable !== false && b.resizable !== false && !isCollapsed(a) && !isCollapsed(b);
   if (resizable) {
     sep.classList.add("resizable");
     sep.addEventListener("mousedown", (e) => dragSeparator(e, sep, dir, a, b));
@@ -558,6 +595,7 @@ export function showView(id: string, focus = true) {
     for (let i = 0; i < path.length; i++) {
       const n = path[i];
       if (st(n.id!).hidden ?? n.hidden) st(n.id!).hidden = false;
+      if (isCollapsed(n)) st(n.id!).collapsed = false; // e.g. ⇧⌘F opens a folded Search section
       if (n.type === "stack" && path[i + 1]) {
         // Shown by a command: temporary. The remembered choice stays, Escape returns to it.
         const childId = path[i + 1].id!;

@@ -10,6 +10,7 @@ use std::collections::HashSet;
 const NODE_KEYS: &[&str] = &[
     "id", "type", "children", "content", "size", "min", "max", "hidden", "background", "border", "radius",
     "padding", "gap", "divider", "resizable", "window_drag", "active", "header", "panes", "title",
+    "collapsible", "collapsed",
 ];
 const ROOT_KEYS: &[&str] = &[
     "name", "preview", "titlebar", "traffic_lights", "theme", "colors", "font", "font_size", "ui_font",
