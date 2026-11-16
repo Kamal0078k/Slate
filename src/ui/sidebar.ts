@@ -520,6 +520,14 @@ export function render() {
   if (!initialized) return;
   tree = withIds(ensureEditor(customTree ?? defaultTree()));
   shownViews = [];
+  // Put the built-in pieces back in #parking first. Otherwise a piece the previous layout used
+  // and this one doesn't (e.g. the activity bar, going from no layout to a custom one) is thrown
+  // away with the old tree, and later lookups by id fail.
+  const parking = $("parking");
+  for (const id of ["editor-area", "statusbar", "activitybar"]) {
+    const piece = document.getElementById(id);
+    if (piece && piece.parentElement !== parking) parking.append(piece);
+  }
   const rootEl = build({ ...tree, size: { weight: 1 } }, null);
   $("layout-root").replaceChildren(rootEl);
   pruneWidgets();

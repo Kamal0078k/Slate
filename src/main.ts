@@ -33,8 +33,12 @@ async function reloadConfig(first = false) {
   const loaded = await api.loadConfig(first);
   state.configDir = loaded.dir;
   Object.assign(configStatus, { diagnostics: loaded.diagnostics, path: loaded.path, exists: loaded.exists });
-  setLayout(loaded.tree, (loaded.config.layout as string) ?? "");
-  loadSettings(loaded.config, loaded.style, loaded.themes);
+  try {
+    setLayout(loaded.tree, (loaded.config.layout as string) ?? "");
+  } finally {
+    // Theme, fonts and settings apply even if rendering the layout failed.
+    loadSettings(loaded.config, loaded.style, loaded.themes);
+  }
   if (!first) void reloadWidgets();
   configStatus.layouts = loaded.layouts;
   setConfigKeybindings(loaded.config.keys ?? {});
