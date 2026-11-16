@@ -200,6 +200,31 @@ any program, and `plugin` (`id`, `dir`, `dataDir`, `config()` = `[plugins.<id>]`
 
 **Plugins: Create New Plugin** scaffolds one. Example: [`examples/plugins/word-count.js`](examples/plugins/word-count.js).
 
+## Built with
+
+Sumi is a new editor, not a fork. The text editing itself (typing, multi-cursor, syntax
+highlighting, find/replace, folding, the diff view) is
+[Monaco](https://github.com/microsoft/monaco-editor), the editor component inside VS Code, used as
+a library the way many apps embed it. Only Monaco is used, not the rest of VS Code.
+
+| Part | Built on |
+| --- | --- |
+| Text editor | [Monaco Editor](https://github.com/microsoft/monaco-editor) (Microsoft, MIT) |
+| Desktop app shell | [Tauri 2](https://v2.tauri.app), using the system WebView instead of a bundled browser |
+| Terminal | [xterm.js](https://xtermjs.org) + [portable-pty](https://github.com/wezterm/wezterm/tree/main/pty) (from WezTerm) |
+| Search in files | [`ignore` and `grep`](https://github.com/BurntSushi/ripgrep), the libraries behind ripgrep |
+| Fuzzy file finder | [nucleo-matcher](https://github.com/helix-editor/nucleo) (from the Helix editor) |
+| Git | [libgit2](https://libgit2.org) via [`git2`](https://github.com/rust-lang/git2-rs) |
+| Files, config | [`notify`](https://github.com/notify-rs/notify), [`trash`](https://github.com/Byron/trash-rs), [`toml` / `toml_edit`](https://github.com/toml-rs/toml) |
+| Bundled fonts | [JetBrains Mono](https://www.jetbrains.com/lp/mono/), [Geist and Geist Mono](https://vercel.com/font) (OFL) |
+
+Everything around the editor is Sumi's own code: the workbench (tabs, split groups, drag and
+drop, session restore), the explorer, search and source control views, terminals that live in
+editor panes, the layout engine (layout files, floating cards, background images, widgets,
+accordion sections), themes, the config system and its validation, named configs, the plugin and
+widget API, the CLI, and the scrolling tuned for trackpads and 120 Hz displays. The config model
+is inspired by the herdr app.
+
 ## Project structure
 
 ```
